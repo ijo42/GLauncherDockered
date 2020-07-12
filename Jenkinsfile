@@ -13,7 +13,7 @@ pipeline {
     stage('Building image') {
       steps{
         script {
-          dockerImage = docker.build(${REGISTRY})
+          dockerImage = docker.build(REGISTRY)
         }
       }
     }
@@ -21,7 +21,7 @@ pipeline {
       steps{
         script {
         withDockerRegistry(credentialsId: 'hub') {
-            dockerImage.push(${VERSION})
+            dockerImage.push(VERSION)
             }
         }
       }
