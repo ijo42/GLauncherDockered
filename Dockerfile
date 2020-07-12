@@ -13,7 +13,7 @@ RUN addgroup --gid "$GID" "launchserver" && \
     --home "/launchserver" \
     --ingroup "launchserver" \
     --uid "$UID" \
-    "launchserver"
+    "launchserver" && chmod +x /entrypoint
 
 USER launchserver
 EXPOSE 9274
