@@ -1,6 +1,6 @@
 pipeline {
   environment {
-    registry = "ijo42/launcher"
+    REGISTRY = "ijo42/launcher"
     VERSION = ''
   }
   agent any
@@ -13,7 +13,7 @@ pipeline {
     stage('Building image') {
       steps{
         script {
-          dockerImage = docker.build($registry)
+          dockerImage = docker.build(${REGISTRY})
         }
       }
     }
@@ -21,14 +21,14 @@ pipeline {
       steps{
         script {
         withDockerRegistry(credentialsId: 'hub') {
-            dockerImage.push($VERSION)
+            dockerImage.push(${VERSION})
             }
         }
       }
     }
     stage('Remove Unused docker image') {
       steps{
-        sh "docker rmi $registry:$VERSION"
+        sh "docker rmi ${REGISTRY}:${VERSION}"
         cleanWs()
       }
     }
