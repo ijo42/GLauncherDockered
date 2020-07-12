@@ -7,7 +7,7 @@ pipeline {
   stages {
     stage('Downloading artifacts') {
       steps {
-        sh label: '', script: '''TAG="latest" && if [[ -n ${VERSION} ]]; then TAG="tags/${VERSION}"; fi && \\
+        sh label: '', script: '''TAG="latest" && if [[ -n "${VERSION}" ]]; then TAG="tags/${VERSION}"; fi && \\
         wget -O artficats.zip $(curl -s https://api.github.com/repos/GravitLauncher/Launcher/releases/${TAG}| grep browser_download_url | cut -d \'"\' -f 4) && unzip artficats.zip -d ./ls && unzip ./ls/libraries.zip  -d ./ls && rm -f ./ls/libraries.zip'''
         }
     }
