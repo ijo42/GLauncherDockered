@@ -9,4 +9,5 @@ if [ ! -d "/launchserver/launcher-modules" ]; then cp -r ${TMP}/launcher-modules
 if [ ! -d "/launchserver/runtime" ]; then cp -r ${TMP}/runtime /launchserver; fi
 
 
-java -Dlaunchserver.dockered=true -Dlauncher.dev=true -javaagent:/launchserver/LaunchServer.jar=/launchserver/libraries -jar /launchserver/LaunchServer.jar
+echo "java -Dlaunchserver.dockered=true -javaagent:/launchserver/LaunchServer.jar=/launchserver/libraries -jar /launchserver/LaunchServer.jar" > /entrypoint
+exec /entrypoint
