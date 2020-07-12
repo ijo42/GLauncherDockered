@@ -1,13 +1,13 @@
 pipeline {
   environment {
     REGISTRY = "ijo42/launcher"
-    VERSION = ''
+    VERSION = "latest"
   }
   agent any
   stages {
     stage('Downloading artifacts') {
       steps {
-        sh label: '', script: '''TAG="latest" && if [[ -n "${VERSION}" ]]; then TAG="tags/${VERSION}"; fi && wget -O artficats.zip $(curl -s https://api.github.com/repos/GravitLauncher/Launcher/releases/${TAG}| grep browser_download_url | cut -d \'"\' -f 4) && unzip artficats.zip -d ./ls && unzip ./ls/libraries.zip -d ./ls && rm -f ./ls/libraries.zip'''
+        sh label: '', script: '''TAG="latest" && if [ ! "${VERSION}" = "latest" ]; then TAG="tags/${VERSION}"; fi && wget -O artficats.zip $(curl -s https://api.github.com/repos/GravitLauncher/Launcher/releases/${TAG}| grep browser_download_url | cut -d \'"\' -f 4) && unzip artficats.zip -d ./ls && unzip ./ls/libraries.zip -d ./ls && rm -f ./ls/libraries.zip'''
         }
     }
     stage('Building image') {
@@ -21,7 +21,7 @@ pipeline {
       steps{
         script {
         withDockerRegistry(credentialsId: 'hub') {
-            dockerImage.push(VERSION)
+            dockerImage.push("${VERSION}")
             }
         }
       }
