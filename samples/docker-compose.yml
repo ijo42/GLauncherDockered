@@ -1,0 +1,19 @@
+version: '2.4'
+
+services:
+  launchserver:
+    build: .
+    tty: true
+    stdin_open: true
+    mem_limit: 512mb
+    container_name: "launchserver"
+    ports:
+      - "9274:9274"
+    volumes:
+      - /home/launchserver/modules:/launchserver/modules
+      - /home/launchserver/updates:/launchserver/updates
+      - /home/launchserver/profiles:/launchserver/profiles
+      - /home/launchserver/LaunchServer.json:/launchserver/LaunchServer.json
+      - /home/launchserver/config/AutoSaveSession:/launchserver/config/AutoSaveSessions
+      
+    restart: always
