@@ -12,4 +12,5 @@ RUN addgroup --gid "$GID" "launchserver" && \
     "launchserver" && chown -R $UID:$GID /tmp/ls /entrypoint
 
 COPY --chown=$UID:$GID ./ls /launchserver
+WORKDIR /launchserver
 USER launchserver
