@@ -2,7 +2,7 @@ FROM ijo42/launcher:latest
 ARG UID
 ARG GID
 
-RUN if [ $GID = 0 ] || [ $UID = 0 ]; then echo "SUDO not allowed" && exit 1; fi && \
+RUN if [ $GID = 0 ] || [ $UID = 0 ]; then echo "ROOT not allowed" && exit 1; fi && \
 	addgroup --gid "1000" "launchserver" && \
 	adduser \
     --disabled-password \
