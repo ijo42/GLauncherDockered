@@ -1,12 +1,13 @@
-version: '2.4'
+version: '2'
 
 services:
   launchserver:
-    build: .
+    image: local/launchserver
     tty: true
     stdin_open: true
     mem_limit: 512mb
     container_name: "launchserver"
+    hostname: "launchserver"
     ports:
       - "9274:9274"
     volumes:
