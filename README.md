@@ -37,7 +37,7 @@ sh build.sh
 
 Казалось бы, создали имейдж.. а что дальше? А дальше я рекомендую использовать docker-compose (пакет, который необходимо установить отдельно)
 
-*Если вы воспользовались скриптом билда, можно заменить 'build: .' на 'image: local/launchserver'`
+*Если вы воспользовались скриптом билда, можно заменить 'build: .' на 'image: local/launchserver'*
 
 Можете воспользоваться готовым [docker-compose файлом](https://github.com/ijo42/GravitLauncherDockered/blob/master/samples/docker-compose.yml)
 
