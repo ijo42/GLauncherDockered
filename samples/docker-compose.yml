@@ -15,5 +15,4 @@ services:
       - /home/launchserver/profiles:/launchserver/profiles
       - /home/launchserver/LaunchServer.json:/launchserver/LaunchServer.json
       - /home/launchserver/config/AutoSaveSession:/launchserver/config/AutoSaveSessions
-      
     restart: always
