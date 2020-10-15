@@ -37,13 +37,11 @@ sh build.sh
 
 Казалось бы, создали имейдж.. а что дальше? А дальше я рекомендую использовать docker-compose (пакет, который необходимо установить отдельно)
 
-*Если вы воспользовались скриптом билда, можно заменить 'build: .' на 'image: local/launchserver'*
-
 Можете воспользоваться готовым [docker-compose файлом](https://github.com/ijo42/GravitLauncherDockered/blob/master/samples/docker-compose.yml)
 
 А мы тем временем разберём его содержимое.
 
-`build: .` - билд происходит из докерфайла текущей директории
+`image: local/launchserver` - используется уже готовый имейдж
 
 `tty`,`stdin_open` - флаги, необходимые для работы аттача
 
@@ -55,9 +53,7 @@ sh build.sh
 
 `restart: always` - задаем рестарт при выключении контейнера
 
-После заполнения docker-compose.yml мы со смелым выражением лица берем и запускам сборку имейджа
-
-`docker-compose build`, после успешной сборки, `docker-compose -f docker-compose.yml up -d`
+После заполнения docker-compose.yml мы со смелым выражением лица берем и запускам контейнер. `docker-compose -f docker-compose.yml up -d`
 
 Готово! Ваш лаунчсервер готов принимать первых игроков, а если захотите подключиться к CLI, можно воспользоваться командой `docker attach launchserver`, а для перезагрузки `docker restart launchserver`. Возрадуйтесь докеру!
 
