@@ -58,3 +58,44 @@ sh build.sh
 Готово! Ваш лаунчсервер готов принимать первых игроков, а если захотите подключиться к CLI, можно воспользоваться командой `docker attach launchserver`, а для перезагрузки `docker restart launchserver`. Возрадуйтесь докеру!
 
 Что стоит отметить отдельно, не стоит использовать в конфигурации лаунчсервера такие слова, как localhost, в связи с особенностями архитектуры докера, рекомендую использовать JSON или Request методы
+
+
+## Сборка из исходников
+
+Теперь так же можно собирать лаунчсервер на освнове commit history. Если вам необходимо собрать какой-то определенный коммит, это возможно!
+
+* Для начала необходимо склонить репозиторий
+
+  `git clone https://github.com/ijo42/GravitLauncherDockered` .
+
+* Затем, собираем как обычный докер-имейдж, указав аргумент сборки 
+
+  `docker build . -t local/launchserver --build-arg LAUNCHER_VERSION=a4355d1d`
+
+* Так мы собрали лаунчсервер версии dev-5.1.8, но можно и рантайм собирать
+
+  `docker build . -t local/launchserver --build-arg RUNTIME_VERSION=aa6fe1a8`
+
+* Или совмещать 
+
+  `docker build . -t local/launchserver --build-arg LAUNCHER_VERSION=a4355d1d --build-arg RUNTIME_VERSION=aa6fe1a8` 
+
+*главное, что бы коммит не начинался с* `v`
+
+## Использование Релизной версии
+
+По умолчанию, для сборки используется артифакты последнего релиза, но что делать если хочется чего то другого? Конечно, в моем докер-хабе можно найти разные версии, но если захочется самому достаточно всего лишь...
+
+* Для начала необходимо склонить репозиторий
+
+  `git clone https://github.com/ijo42/GravitLauncherDockered` .
+
+* Затем, собираем как ... *впрочем, вы уже знаете*
+
+  `docker build . -t local/launchserver --build-arg LAUNCHER_VERSION=v5.1.7`
+
+* Напоследок, совместим с рантаймом
+
+  `docker build . -t local/launchserver --build-arg LAUNCHER_VERSION=v5.1.7 --build-arg RUNTIME_VERSION=v1.4.0` 
+
+Ничего сложного, не так ли?
