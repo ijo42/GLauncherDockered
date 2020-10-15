@@ -3,17 +3,16 @@
 FROM bellsoft/liberica-openjdk-debian:11 as launcher-base
 
 ### Modify argument LAUNCHER_VERSION or redefine it via --build-arg parameter to have specific LaunchServer version installed:
-###    docker build . --build-arg LAUNCHER_VERSION=5.1.8
+###    docker build . --build-arg LAUNCHER_VERSION=v5.1.8
 ### Modify argument RUNTIME_VERSION  or redefine it via --build-arg parameter to have specific Runtime version installed:
-###    docker build . --build-arg RUNTIME_VERSION=1.4.0
+###    docker build . --build-arg RUNTIME_VERSION=v1.4.0
 
 ARG LAUNCHER_VERSION=latest
 ARG RUNTIME_VERSION=latest
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get -qq update < /dev/null && apt-get install -qq curl wget unzip git < /dev/null && mkdir -p /root/ls /tmp/ls
-##&& \ TODO: BACK IT
-RUN  \
+RUN apt-get -qq update < /dev/null && apt-get install -qq curl wget unzip git < /dev/null && \
+  mkdir -p /root/ls/launcher-modules /root/ls/runtime /tmp/ls && set -e && \
   if [ $LAUNCHER_VERSION = v* ] || [ $LAUNCHER_VERSION = "latest" ] ; then TAG_LS="latest" && \
     if [ ! $LAUNCHER_VERSION = "latest" ]; then TAG_LS="tags/${LAUNCHER_VERSION}"; fi && \
     wget -nv -O /tmp/ls/artficats.zip \
@@ -21,7 +20,7 @@ RUN  \
     unzip -q /tmp/ls/artficats.zip -d /root/ls && unzip -q /root/ls/libraries.zip -d /root/ls && \
     rm -f /root/ls/libraries.zip; \
   else \
-    echo -e "\033[32mPhase 1: \033[33mClone main repository\033[m" && \
+    echo "\033[32mPhase 1: \033[33mClone main repository\033[m" && \
     git clone -b dev https://github.com/GravitLauncher/Launcher.git src && \
     cd src && \
     sed -i 's/git@github.com:/https:\/\/github.com\//' .gitmodules && \
@@ -30,23 +29,24 @@ RUN  \
     git submodule update --init --recursive && \
     echo -e "\033[32mPhase 2: \033[33mBuild\033[m" && \
     ./gradlew -Dorg.gradle.daemon=false build || ( echo -e "\033[31mBuild failed. Stopping\033[m" && exit 101 ) && \
-    cp -R LaunchServer.jar launcher-libraries launcher-libraries-compile libraries /root/ls && \
+    PTH=LaunchServer/build/libs && rm -rf $HOME/.gradle && \
+    cp -R ${PTH}/LaunchServer.jar ${PTH}/launcher-libraries ${PTH}/launcher-libraries-compile ${PTH}/libraries /root/ls && \
     cd ..; \
   fi && \
   if [ $RUNTIME_VERSION = v* ] || [ $RUNTIME_VERSION = "latest" ] ; then TAG_RT="latest" && \
     if [ ! $RUNTIME_VERSION = "latest" ]; then TAG_RT="tags/${RUNTIME_VERSION}"; fi && \
     wget -nv -O /tmp/ls/runtime_artficats.zip \
       $(curl -s https://api.github.com/repos/GravitLauncher/LauncherRuntime/releases/$TAG_RT | grep browser_download_url | cut -d '"' -f 4) && \
-    unzip -q /tmp/ls/runtime_artficats.zip -d /root/ls/launcher-modules && unzip -q /root/ls/launcher-modules/runtime.zip -d /root/ls/runtime && \
-    rm -f /root/ls/launcher-modules/runtime.zip \
+    unzip -q /tmp/ls/runtime_artficats.zip -d /root/ls/launcher-modules && unzip -q /root/ls/launcher-modules/runtime.zip -d \
+    /root/ls/runtime && rm -f /root/ls/launcher-modules/runtime.zip; \
   else \
-    echo -e "\033[32mPhase 3: \033[33mClone runtime repository\033[m" && \
+    echo "\033[32mPhase 3: \033[33mClone runtime repository\033[m" && \
     git clone -b dev https://github.com/GravitLauncher/LauncherRuntime.git srcRuntime && \
     cd srcRuntime && \
     git checkout $RUNTIME_VERSION && \
     ./gradlew -Dorg.gradle.daemon=false build || ( echo -e "\033[31mBuild failed. Stopping\033[m" && exit 102 ) && \
-    cp build/libs/JavaRuntime-* /root/ls/launcher-modules/ && \
-    cp -R runtime/* /root/ls/runtime/ && \
+    cp $(echo build/libs/JavaRuntime-*.jar) /root/ls/launcher-modules/ && \
+    cp -R runtime/* /root/ls/runtime/ && rm -rf $HOME/.gradle && \
     cd ..; \
   fi
 
@@ -97,9 +97,11 @@ RUN apk --no-cache -U upgrade && \
 	SHA1=`wget -q "https://download.bell-sw.com/sha1sum/java/${LIBERICA_VERSION}${LIBERICA_BUILD_STR}" -O - | grep ${PKG} | cut -f1 -d' '` && \
 	echo "${SHA1} */tmp/java/jdk.tar.gz" | sha1sum -c - && tar xzf /tmp/java/jdk.tar.gz -C /tmp/java && \
 	UNPACKED_ROOT="/tmp/java/${LIBERICA_VARIANT}-${LIBERICA_VERSION}${RUSUFFIX}" && \
-	if [ "$LIBERICA_IMAGE_VARIANT" = "base" ]; then mkdir -p "${LIBERICA_JVM_DIR}" && MODS=`echo ${OPT_JMODS} | sed "s/ /,/g" | sed "s/,$//"` && "${UNPACKED_ROOT}/bin/jlink" --add-modules "${MODS}" \
+	if [ "$LIBERICA_IMAGE_VARIANT" = "base" ]; then mkdir -p "${LIBERICA_JVM_DIR}" && \
+    MODS=`echo ${OPT_JMODS} | sed "s/ /,/g" | sed "s/,$//"` && "${UNPACKED_ROOT}/bin/jlink" --add-modules "${MODS}" \
 	  --no-header-files --no-man-pages --strip-debug --module-path "${UNPACKED_ROOT}"/jmods --vm=server --output "${LIBERICA_ROOT}"; fi && \
-	if [ "$LIBERICA_IMAGE_VARIANT" = "full" ]; then mkdir -p "${LIBERICA_JVM_DIR}" && MODS=`ls "${UNPACKED_ROOT}/jmods/" | sed "s/.jmod//" | grep -v javafx | tr '\n' ', ' | sed "s/,$//"` && \
+	if [ "$LIBERICA_IMAGE_VARIANT" = "full" ]; then mkdir -p "${LIBERICA_JVM_DIR}" && \
+    MODS=`ls "${UNPACKED_ROOT}/jmods/" | sed "s/.jmod//" | grep -v javafx | tr '\n' ', ' | sed "s/,$//"` && \
 		"${UNPACKED_ROOT}/bin/jlink" --add-modules "${MODS}" --module-path "${UNPACKED_ROOT}/jmods" --vm=server --output "${LIBERICA_ROOT}"; fi && \
 	mkdir -p "${LIBERICA_ROOT}/jmods" && ln -s "${LIBERICA_ROOT}" /usr/lib/jvm/jdk && \
 	wget -nv -O /entrypoint "https://github.com/ijo42/GravitLauncherDockered/raw/master/entrypoint" && chmod +x /entrypoint && \
