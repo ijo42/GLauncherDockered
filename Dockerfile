@@ -60,14 +60,14 @@ FROM alpine:latest as liberica
 ### full: full jdk image with Server VM and jmods, can be used to create arbirary module set, ~180 MB
 
 ENV  LANG=en_US.UTF-8 \
-		 LANGUAGE=en_US:en
-#	 LC_ALL=en_US.UTF-8
+     LANGUAGE=en_US:en
+#    LC_ALL=en_US.UTF-8
 
 ARG LIBERICA_IMAGE_VARIANT=base
 
 ARG LIBERICA_JVM_DIR=/usr/lib/jvm
 ARG LIBERICA_ROOT=${LIBERICA_JVM_DIR}/jdk-bellsoft
-ARG LIBERICA_VERSION=11.0.10
+ARG LIBERICA_VERSION=11.0.11
 ARG LIBERICA_BUILD=9
 ARG LIBERICA_VARIANT=jdk
 ARG LIBERICA_RELEASE_TAG=
@@ -83,35 +83,36 @@ ARG OPT_JFXMODS="javafx.base javafx.graphics javafx.controls"
 COPY --from=launcher-base /root /tmp
 
 RUN apk --no-cache -U upgrade && \
-	echo "export LANG=C.UTF-8" > /etc/profile.d/locale.sh && \
-	wget -nv -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub && \
-	wget -nv -O /tmp/glibc-${GLIBC_VERSION}.apk ${GLIBC_REPO}/releases/download/${GLIBC_VERSION}/glibc-${GLIBC_VERSION}.apk && \
-	wget -nv -O /tmp/glibc-bin-${GLIBC_VERSION}.apk ${GLIBC_REPO}/releases/download/${GLIBC_VERSION}/glibc-bin-${GLIBC_VERSION}.apk && \
-	apk --no-cache add /tmp/*.apk && rm -v /tmp/*.apk && \
-	RTAG="$LIBERICA_RELEASE_TAG" && if [ "x${RTAG}" = "x" ]; then RTAG="$LIBERICA_VERSION"; fi && \
-	LIBSUFFIX="" && if [ "$LIBERICA_GLIBC" = "no" ]; then LIBSUFFIX="-musl"; fi && \
-	for pkg in $OPT_PKGS ; do apk --no-cache add $pkg ; done && mkdir -p /tmp/java && \
-	LIBERICA_BUILD_STR=${LIBERICA_BUILD:+"+${LIBERICA_BUILD}"} && \
-	PKG=`echo "bellsoft-${LIBERICA_VARIANT}${LIBERICA_VERSION}${LIBERICA_BUILD_STR}-linux-${LIBERICA_ARCH}${LIBSUFFIX}.tar.gz"` && \
-	wget -nv -O /tmp/java/jdk.tar.gz "https://download.bell-sw.com/java/${LIBERICA_VERSION}${LIBERICA_BUILD_STR}/${PKG}" && \
-	SHA1=`wget -q "https://download.bell-sw.com/sha1sum/java/${LIBERICA_VERSION}${LIBERICA_BUILD_STR}" -O - | grep ${PKG} | cut -f1 -d' '` && \
-	echo "${SHA1} */tmp/java/jdk.tar.gz" | sha1sum -c - && tar xzf /tmp/java/jdk.tar.gz -C /tmp/java && \
-	UNPACKED_ROOT="/tmp/java/${LIBERICA_VARIANT}-${LIBERICA_VERSION}${RUSUFFIX}" && \
-	if [ "$LIBERICA_IMAGE_VARIANT" = "base" ]; then mkdir -p "${LIBERICA_JVM_DIR}" && \
+    echo "export LANG=C.UTF-8" > /etc/profile.d/locale.sh && \
+    cd /tmp && wget -nv -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub && \
+    for pkg in glibc glibc-bin ; do \
+        wget -nv -O ${pkg}-${GLIBC_VERSION}.apk ${GLIBC_REPO}/releases/download/${GLIBC_VERSION}/${pkg}-${GLIBC_VERSION}.apk && \
+        apk add --no-cache ${pkg}-${GLIBC_VERSION}.apk && rm ${pkg}-${GLIBC_VERSION}.apk ; \
+    done && \
+    RTAG="$LIBERICA_RELEASE_TAG" && if [ "x${RTAG}" = "x" ]; then RTAG="$LIBERICA_VERSION"; fi && \
+    LIBSUFFIX="" && if [ "$LIBERICA_GLIBC" = "no" ]; then LIBSUFFIX="-musl"; fi && \
+    for pkg in $OPT_PKGS ; do apk --no-cache add $pkg ; done && mkdir -p /tmp/java && \
+    LIBERICA_BUILD_STR=${LIBERICA_BUILD:+"+${LIBERICA_BUILD}"} && \
+    PKG=`echo "bellsoft-${LIBERICA_VARIANT}${LIBERICA_VERSION}${LIBERICA_BUILD_STR}-linux-${LIBERICA_ARCH}${LIBSUFFIX}.tar.gz"` && \
+    wget -nv -O /tmp/java/jdk.tar.gz "https://download.bell-sw.com/java/${LIBERICA_VERSION}${LIBERICA_BUILD_STR}/${PKG}" && \
+    SHA1=`wget -q "https://download.bell-sw.com/sha1sum/java/${LIBERICA_VERSION}${LIBERICA_BUILD_STR}" -O - | grep ${PKG} | cut -f1 -d' '` && \
+    echo "${SHA1} */tmp/java/jdk.tar.gz" | sha1sum -c - && tar xzf /tmp/java/jdk.tar.gz -C /tmp/java && \
+    UNPACKED_ROOT="/tmp/java/${LIBERICA_VARIANT}-${LIBERICA_VERSION}${RUSUFFIX}" && \
+    if [ "$LIBERICA_IMAGE_VARIANT" = "base" ]; then mkdir -p "${LIBERICA_JVM_DIR}" && \
     MODS=`echo ${OPT_JMODS} | sed "s/ /,/g" | sed "s/,$//"` && "${UNPACKED_ROOT}/bin/jlink" --add-modules "${MODS}" \
-	  --no-header-files --no-man-pages --strip-debug --module-path "${UNPACKED_ROOT}"/jmods --vm=server --output "${LIBERICA_ROOT}"; fi && \
-	if [ "$LIBERICA_IMAGE_VARIANT" = "full" ]; then mkdir -p "${LIBERICA_JVM_DIR}" && \
+      --no-header-files --no-man-pages --strip-debug --module-path "${UNPACKED_ROOT}"/jmods --vm=server --output "${LIBERICA_ROOT}"; fi && \
+    if [ "$LIBERICA_IMAGE_VARIANT" = "full" ]; then mkdir -p "${LIBERICA_JVM_DIR}" && \
     MODS=`ls "${UNPACKED_ROOT}/jmods/" | sed "s/.jmod//" | grep -v javafx | tr '\n' ', ' | sed "s/,$//"` && \
-		"${UNPACKED_ROOT}/bin/jlink" --add-modules "${MODS}" --module-path "${UNPACKED_ROOT}/jmods" --vm=server --output "${LIBERICA_ROOT}"; fi && \
-	mkdir -p "${LIBERICA_ROOT}/jmods" && ln -s "${LIBERICA_ROOT}" /usr/lib/jvm/jdk && \
-	wget -nv -O /entrypoint "https://github.com/ijo42/GravitLauncherDockered/raw/master/entrypoint" && chmod +x /entrypoint && \
-	wget -nv -O /tmp/javafx-jmods.zip "https://gluonhq.com/download/javafx-11-0-2-jmods-linux/" && unzip -q /tmp/javafx-jmods.zip -d /tmp/ && \
-	for JMOD in $OPT_JFXMODS ; do cp "/tmp/javafx-jmods-11.0.2/${JMOD}.jmod" "${LIBERICA_ROOT}/jmods/${JMOD}.jmod" ; done && \
-	for JMOD in $OPT_JMODS   ; do cp   "${UNPACKED_ROOT}/jmods/${JMOD}.jmod" "${LIBERICA_ROOT}/jmods/${JMOD}.jmod" ; done && \
-	rm -rf /tmp/java /tmp/javafx-* /tmp/hsperfdata_root
+        "${UNPACKED_ROOT}/bin/jlink" --add-modules "${MODS}" --module-path "${UNPACKED_ROOT}/jmods" --vm=server --output "${LIBERICA_ROOT}"; fi && \
+    mkdir -p "${LIBERICA_ROOT}/jmods" && ln -s "${LIBERICA_ROOT}" /usr/lib/jvm/jdk && \
+    wget -nv -O /entrypoint "https://github.com/ijo42/GravitLauncherDockered/raw/master/entrypoint" && chmod +x /entrypoint && \
+    wget -nv -O /tmp/javafx-jmods.zip "https://gluonhq.com/download/javafx-11-0-2-jmods-linux/" && unzip -q /tmp/javafx-jmods.zip -d /tmp/ && \
+    for JMOD in $OPT_JFXMODS ; do cp "/tmp/javafx-jmods-11.0.2/${JMOD}.jmod" "${LIBERICA_ROOT}/jmods/${JMOD}.jmod" ; done && \
+    for JMOD in $OPT_JMODS ; do cp "${UNPACKED_ROOT}/jmods/${JMOD}.jmod" "${LIBERICA_ROOT}/jmods/${JMOD}.jmod" ; done && \
+    rm -rf /tmp/java /tmp/javafx-* /tmp/hsperfdata_root
 
 ENV JAVA_HOME=${LIBERICA_ROOT} \
-	PATH=${LIBERICA_ROOT}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    PATH=${LIBERICA_ROOT}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 EXPOSE 9274
 ENTRYPOINT [ "/entrypoint" ]
