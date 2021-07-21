@@ -1,16 +1,16 @@
 name: Manual build workflow
 env:
-  DOCKER_IMAGE: ijo42/launcher
+  DOCKER_IMAGE: ijo42/glauncher
 
 on:
   workflow_dispatch:
     inputs:
       launcher_ref:
-        description: 'Git reference to GravitLauncher repo'
+        description: 'Git ref on GravitLauncher repo'
         required: false
         default: 'latest'
       runtime_ref:
-        description: 'Git reference to Runtime repo'
+        description: 'Git ref on Runtime repo'
         required: false
         default: 'latest'
 

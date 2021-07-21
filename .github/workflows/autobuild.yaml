@@ -1,6 +1,6 @@
 name: Build Workflow
 env:
-  DOCKER_IMAGE: ijo42/launcher
+  DOCKER_IMAGE: ijo42/glauncher
 
 on:
   schedule:
