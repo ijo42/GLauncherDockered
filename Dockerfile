@@ -78,7 +78,7 @@ ARG LIBERICA_GLIBC=no
 ARG OPT_PKGS="bash unzip"
 ARG GLIBC_REPO=https://github.com/sgerrand/alpine-pkg-glibc
 ARG GLIBC_VERSION=2.32-r0
-ARG OPT_JMODS="java.base java.instrument jdk.management java.scripting java.sql jdk.unsupported java.naming java.desktop"
+ARG OPT_JMODS="java.base java.instrument jdk.management java.scripting java.sql jdk.unsupported java.naming java.desktop jdk.crypto.cryptoki jdk.crypto.ec"
 ARG OPT_JFXMODS="javafx.base javafx.graphics javafx.controls"
 
 RUN apk --no-cache -U upgrade && \
