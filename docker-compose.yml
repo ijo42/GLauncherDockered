@@ -1,0 +1,18 @@
+version: '2'
+
+services:
+  launchserver:
+    image: ijo42/glauncher
+    tty: true
+    stdin_open: true
+    mem_limit: 512mb
+    container_name: "launchserver"
+    ports:
+      - "9274:9274"
+    volumes:
+      - ./launchserver:/app/launchserver
+    restart: always
+    environment:
+      - TZ=Europe/Moscow # Timezone
+      - PUID=1000  # User  ID `id $(whoami) -u`
+      - PGID=1000  # Group ID `id $(whoami) -g`
