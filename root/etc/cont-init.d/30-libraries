@@ -1,0 +1,18 @@
+#!/usr/bin/with-contenv bash
+
+for f in libraries/ launcher-libraries/ launcher-libraries-compile/ runtime/ launcher-modules/ LaunchServer.jar ; do \
+    if [ ! -f /app/launchserver/${f} ]; then
+        echo "
+        **** missing ${f}. copy defaults ****
+        "
+        cp -Rfv \
+            /defaults/${f} \
+            /app/launchserver/${f}
+    fi
+done
+    
+chown -R \
+  abc:abc \
+    /app/launchserver
+
+echo "**** libs checked ****"
