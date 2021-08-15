@@ -1,101 +1,108 @@
 # GravitLauncherDockered
-Что ты здесь делаешь?? уходи скорее, пока спишь по ночам спокойно!
 
-Сегодня мы.. мы ставим [GravitLauncher](https://github.com/GravitLauncher) наиболее простым способом. Docker.
+[![Docker Pulls](https://img.shields.io/docker/pulls/ijo42/glauncher?style=for-the-badge&logo=Docker&labelColor=325358&color=c0ffee&logoColor=white)](https://hub.docker.com/repository/docker/ijo42/glauncher)
+[![Docker Image Size (latest by date)](https://img.shields.io/docker/image-size/ijo42/glauncher?label=Image%20size&sort=date&style=for-the-badge&logo=Docker&labelColor=325358&color=c0ffee&logoColor=white)](https://hub.docker.com/repository/docker/ijo42/glauncher)
+[![GitHub Repo stars](https://img.shields.io/github/stars/ijo42/GLauncherDockered?label=GitHub%20Stars&style=for-the-badge&logo=Github&labelColor=325358&color=c0ffee)](https://github.com/ijo42/GLauncherDockered)
+[![GitHub forks](https://img.shields.io/github/forks/ijo42/GLauncherDockered?label=GitHub%20Forks&style=for-the-badge&logo=Github&labelColor=325358&color=c0ffee)](https://github.com/ijo42/GLauncherDockered)
 
-Что нам для этого понадобится..? Серверная машина (желательно, Linux дистрибутив), куда потребуется поставить Docker
+---
 
-`curl -fsSL https://get.docker.com -o get-docker.sh && sudo sh get-docker.sh`
+Repo contains [GravitLauncher](https://github.com/GravitLauncher), with [lsiobase/alpine](https://hub.docker.com/r/lsiobase/alpine) as the base image and minimal [liberica](https://bell-sw.com) JDK for image size reduce.
 
-Что нам нужно знать.. я собрал докер-имейдж, в котором содержится образ BellSoft Java 11, с минимальным кол-вом зависимостей, что получилось благодаря использованию Alpine linux и выпила большинства java module.
-## Самый простой пример запуска лаунчсервера в режиме CLI
+The [lsiobase/alpine](https://hub.docker.com/r/lsiobase/alpine) image is a custom base image built with [Alpine linux](https://alpinelinux.org/) and [S6 overlay](https://github.com/just-containers/s6-overlay).
+Using this image allows us to use the same user/group ids in the container as on the host, making file transfers much easier
+
+# Deployment
+
+Tags | Description
+-----|------------
+`latest` | Using the `latest` tag will pull the weekly-builded image.
+
+## Pre-built images `latest`
+
+using docker-compose:
+
+```docker-compose.yml
+version: "2"
+services:
+  launchserver:
+    image: ijo42/glauncher:latest
+    container_name: launchserver
+    restart: unless-stopped
+    environment:
+      - TZ=Europe/Moscow # Timezone
+      - PUID=1000 # User ID
+      - PGID=1000 # Group ID
+    ports:
+      - 9274:9274
+    volumes:
+      - /host/path/to/launchserver:/app/launchserver
 ```
-docker run -it -p 9274:9274 ijo42/launcher
+
+Using CLI:
+
+```bash
+docker create \
+  --name=launchserver \
+  -it -p 9274:9274 \
+  -e TZ=Europe/Moscow `# Timezone` \
+  -e PUID=1000 `# User ID` \
+  -e PGID=1000 `# Group ID` \
+  -v /host/path/to/launchserver:/app/launchserver `# Where conf will be stored` \
+  --restart unless-stopped \
+  ijo42/glauncher:latest
 ```
-Что мы тут делаем? 
 
-`docker run` - это запуск докер-контейнера
+# Configuration
 
-`-it` - два флага, необходимые для коннекта к запущенному контейнеру
+Configuration | Explanation
+------------ | -------------
+[Restart policy](https://docs.docker.com/compose/compose-file/#restart) | "no", always, on-failure, unless-stopped
+TZ | Timezone
+PUID | for UserID
+PGID | for GroupID
 
-`-p 9274:9274` - маппим порт из контейнера наружу, что бы можно было подключиться к лаунчсерверу из вне
 
-`ijo42/launcher` - название готового докер-имейджа
+## User / Group Identifiers
 
-В данном примере мы можем запустить лаунчсервер, и даже слегка использовать для отладочных целей, но не более.
+When using volumes, permissions issues can arise between the host OS and the container. [Linuxserver.io](https://www.linuxserver.io/) avoids this issue by allowing you to specify the user `PUID` and group `PGID`.
 
-## Создание кастомного докер-имейджа
-Зачем? Если у вас есть статичные файлы, можно смонтировать их в имейдж и забыть об их сущестовании и жить дальше. К примеру, можно смонтировать ключи, рантайм, конфиги
+Ensure any volume directories on the host are owned by the same user you specify and any permissions issues will vanish like magic.
 
-Для начала создаем папку `ls` и переносим в неё все, что хотим вмонтировать. Далее, склонируем репо и запустим скрипт билда:
+In this instance `PUID=1000` and `PGID=1000`, to find yours use `id user` as below:
+
 ```
-git clone https://github.com/ijo42/GravitLauncherDockered/
-cd GravitLauncherDockered/samples/
-sh build.sh
+  $ id $(whoami)
+    uid=1000(dockeruser) gid=1000(dockergroup) groups=1000(dockergroup)
 ```
-У вас потребуют имя юзера, от имени которого будут происходить операции, его вы должны создать отдельно *root под запретом!*
 
-Казалось бы, создали имейдж.. а что дальше? А дальше я рекомендую использовать docker-compose (пакет, который необходимо установить отдельно)
+# Building the image yourself
 
-Можете воспользоваться готовым [docker-compose файлом](https://github.com/ijo42/GravitLauncherDockered/blob/master/samples/docker-compose.yml)
+Use the [Dockerfile](https://github.com/ijo42/GLauncherDockered/Dockerfile) to build the image yourself, in case you want to make any changes to it
 
-А мы тем временем разберём его содержимое.
+docker-compose.yml:
 
-`image: local/launchserver` - используется уже готовый имейдж
+```docker-compose.yml
+version: '2'
+services:
+  launchserver:
+    container_name: launchserver
+    build:
+        context: ./GLauncherDockered
+        args:
+        - LAUNCHER_VERSION=a4355d1d
+        - RUNTIME_VERSION=aa6fe1a8
+    restart: unless-stopped
+    volumes:
+      - /host/path/to/launchserver:/app/launchserver
+    environment:
+      - TZ=Europe/Moscow # Timezone
+      - PUID=1000  # User ID
+      - PGID=1000  # Group ID
+```
 
-`tty`,`stdin_open` - флаги, необходимые для работы аттача
-
-`mem_limit` - hard-limit для запускаемого контейнера
-
-`ports` - маппим порты для доступа из вне
-
-`volumes` - самый интересный пункт файла, в котором задаются динамические файлы, такие как папка updates, profiles и различные конфигурации, требующие вмешательства
-
-`restart: always` - задаем рестарт при выключении контейнера
-
-После заполнения docker-compose.yml мы со смелым выражением лица берем и запускам контейнер. `docker-compose -f docker-compose.yml up -d`
-
-Готово! Ваш лаунчсервер готов принимать первых игроков, а если захотите подключиться к CLI, можно воспользоваться командой `docker attach launchserver`, а для перезагрузки `docker restart launchserver`. Возрадуйтесь докеру!
-
-Что стоит отметить отдельно, не стоит использовать в конфигурации лаунчсервера такие слова, как localhost, в связи с особенностями архитектуры докера, рекомендую использовать JSON или Request методы
-
-
-## Сборка из исходников
-
-Теперь так же можно собирать лаунчсервер на освнове commit history. Если вам необходимо собрать какой-то определенный коммит, это возможно!
-
-* Для начала необходимо склонить репозиторий
-
-  `git clone https://github.com/ijo42/GravitLauncherDockered` .
-
-* Затем, собираем как обычный докер-имейдж, указав аргумент сборки 
-
-  `docker build . -t local/launchserver --build-arg LAUNCHER_VERSION=a4355d1d`
-
-* Так мы собрали лаунчсервер версии dev-5.1.8, но можно и рантайм собирать
-
-  `docker build . -t local/launchserver --build-arg RUNTIME_VERSION=aa6fe1a8`
-
-* Или совмещать 
-
-  `docker build . -t local/launchserver --build-arg LAUNCHER_VERSION=a4355d1d --build-arg RUNTIME_VERSION=aa6fe1a8` 
-
-*главное, что бы коммит не начинался с* `v`
-
-## Использование Релизной версии
-
-По умолчанию, для сборки используется артифакты последнего релиза, но что делать если хочется чего то другого? Конечно, в моем докер-хабе можно найти разные версии, но если захочется самому достаточно всего лишь...
-
-* Для начала необходимо склонить репозиторий
-
-  `git clone https://github.com/ijo42/GravitLauncherDockered` .
-
-* Затем, собираем как ... *впрочем, вы уже знаете*
-
-  `docker build . -t local/launchserver --build-arg LAUNCHER_VERSION=v5.1.7`
-
-* Напоследок, совместим с рантаймом
-
-  `docker build . -t local/launchserver --build-arg LAUNCHER_VERSION=v5.1.7 --build-arg RUNTIME_VERSION=v1.4.0` 
-
-Ничего сложного, не так ли?
+1. Clone the repository: `git clone https://github.com/ijo42/GLauncherDockered.git`
+2. Prepare docker-compose.yml file as seen above
+3. `docker-compose up -d --build launchserver`
+4. ???
+5. Profit!
