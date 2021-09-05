@@ -56,9 +56,9 @@ FROM lsiobase/alpine:3.14 as liberica
 
 LABEL maintainer="ijo42 <admin@ijo42.ru>"
 ### Modify argument LIBERICA_IMAGE_VARIANT or redefine it via --build-arg parameter to have specific liberica image installed:
-###    docker build . --build-arg LIBERICA_IMAGE_VARIANT=[full|base]
+###    docker build . --build-arg LIBERICA_IMAGE_VARIANT=[standart|base]
 ### base: minimal image with compressed java.base module, Server VM and optional files stripped, ~37 MB with Alpine base
-### full: full jdk image with Server VM and jmods, can be used to create arbirary module set, ~180 MB
+### standart: standart jdk image with Server VM and jmods, can be used to create arbirary module set, ~180 MB
 
 ENV  LANG=en_US.UTF-8 \
      LANGUAGE=en_US:en
@@ -100,7 +100,7 @@ RUN apk --no-cache -U upgrade && \
     if [ "$LIBERICA_IMAGE_VARIANT" = "base" ]; then mkdir -p "${LIBERICA_JVM_DIR}" && \
     MODS=`echo ${OPT_JMODS} | sed "s/ /,/g" | sed "s/,$//"` && "${UNPACKED_ROOT}/bin/jlink" --add-modules "${MODS}" \
       --no-header-files --no-man-pages --strip-debug --module-path "${UNPACKED_ROOT}"/jmods --vm=server --output "${LIBERICA_ROOT}"; fi && \
-    if [ "$LIBERICA_IMAGE_VARIANT" = "full" ]; then mkdir -p "${LIBERICA_JVM_DIR}" && \
+    if [ "$LIBERICA_IMAGE_VARIANT" = "standart" ]; then mkdir -p "${LIBERICA_JVM_DIR}" && \
         MODS=`ls "${UNPACKED_ROOT}/jmods/" | sed "s/.jmod//" | grep -v javafx | tr '\n' ', ' | sed "s/,$//"` && \
         "${UNPACKED_ROOT}/bin/jlink" --add-modules "${MODS}" --module-path "${UNPACKED_ROOT}/jmods" --vm=server --output "${LIBERICA_ROOT}"; fi && \
     mkdir -p "${LIBERICA_ROOT}/jmods" && ln -s "${LIBERICA_ROOT}" /usr/lib/jvm/jdk && \
