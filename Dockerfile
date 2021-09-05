@@ -117,5 +117,7 @@ WORKDIR /app/launchserver
 COPY --from=launcher-base /root/ls /defaults
 COPY root/ /
 
+VOLUME ["/app/launchserver"]
+
 EXPOSE 9274
 CMD ["s6-setuidgid", "abc", "java", "-Dlaunchserver.dockered=true", "-javaagent:LaunchServer.jar", "-jar", "LaunchServer.jar"]
