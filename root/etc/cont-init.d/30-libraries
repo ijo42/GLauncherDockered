@@ -1,13 +1,13 @@
 #!/usr/bin/with-contenv bash
 
-for f in libraries/ launcher-libraries/ launcher-libraries-compile/ runtime/ launcher-modules/ LaunchServer.jar ; do \
-    if [ ! -f /app/launchserver/${f} ]; then
+for f in 'libraries' 'launcher-libraries' 'launcher-libraries-compile' 'runtime' 'launcher-modules' 'LaunchServer.jar' ; do \
+    if [ ! -e /app/launchserver/${f} ]; then
         echo "
-        **** missing ${f}. copy defaults ****
+        **** missing ${f}. copying defaults ****
         "
         cp -Rfv \
             /defaults/${f} \
-            /app/launchserver/${f}
+            /app/launchserver/
     fi
 done
     
