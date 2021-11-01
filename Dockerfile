@@ -7,48 +7,33 @@ FROM bellsoft/liberica-openjdk-debian:11 as launcher-base
 ### Modify argument RUNTIME_VERSION  or redefine it via --build-arg parameter to have specific Runtime version installed:
 ###    docker build . --build-arg RUNTIME_VERSION=v1.4.0
 
-ARG LAUNCHER_VERSION=latest
-ARG RUNTIME_VERSION=latest
+ARG LAUNCHER_VERSION=master
+ARG RUNTIME_VERSION=master
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get -qq update < /dev/null && apt-get install -qqy curl wget unzip git < /dev/null && \
-  mkdir -p /root/ls/launcher-modules /root/ls/runtime /tmp/ls && set -e && \
-  if [ $LAUNCHER_VERSION = v* ] || [ $LAUNCHER_VERSION = "latest" ] ; then TAG_LS="latest" && \
-    if [ ! $LAUNCHER_VERSION = "latest" ]; then TAG_LS="tags/${LAUNCHER_VERSION}"; fi && \
-    wget -nv -O /tmp/ls/artficats.zip \
-      $(curl -s https://api.github.com/repos/GravitLauncher/Launcher/releases/$TAG_LS | grep browser_download_url | cut -d '"' -f 4) && \
-    unzip -q /tmp/ls/artficats.zip -d /root/ls && unzip -q /root/ls/libraries.zip -d /root/ls && \
-    rm -f /root/ls/libraries.zip; \
-  else \
-    echo "Phase 1: Clone main repository" && \
+RUN apt-get -qq update < /dev/null && apt-get install -qqy git < /dev/null && \
+    mkdir -p /root/ls/launcher-modules /root/ls/runtime && set -e && \
+    echo "Clone main repository" && \
     git clone -b dev https://github.com/GravitLauncher/Launcher.git src && \
     cd src && \
     sed -i 's/git@github.com:/https:\/\/github.com\//' .gitmodules && \
     git checkout $LAUNCHER_VERSION && \
     git submodule sync && \
     git submodule update --init --recursive && \
-    echo "Phase 2: Build" && \
-    ./gradlew -Dorg.gradle.daemon=false build || ( echo "Build failed. Stopping" && exit 101 ) && \
+    echo "Build" && \
+    ./gradlew build || ( echo "Build failed. Stopping" && exit 101 ) && \
     PTH=LaunchServer/build/libs && rm -rf $HOME/.gradle && \
     cp -R ${PTH}/LaunchServer.jar ${PTH}/launcher-libraries ${PTH}/launcher-libraries-compile ${PTH}/libraries /root/ls && \
-    cd ..; \
-  fi && \
-  if [ $RUNTIME_VERSION = v* ] || [ $RUNTIME_VERSION = "latest" ] ; then TAG_RT="latest" && \
-    if [ ! $RUNTIME_VERSION = "latest" ]; then TAG_RT="tags/${RUNTIME_VERSION}"; fi && \
-    wget -nv -O /tmp/ls/runtime_artficats.zip \
-      $(curl -s https://api.github.com/repos/GravitLauncher/LauncherRuntime/releases/$TAG_RT | grep browser_download_url | cut -d '"' -f 4) && \
-    unzip -q /tmp/ls/runtime_artficats.zip -d /root/ls/launcher-modules && unzip -q /root/ls/launcher-modules/runtime.zip -d \
-    /root/ls/runtime && rm -f /root/ls/launcher-modules/runtime.zip; \
-  else \
-    echo "Phase 3: Clone runtime repository" && \
+    cd .. \
+  && \
+    echo "Clone runtime repository" && \
     git clone -b dev https://github.com/GravitLauncher/LauncherRuntime.git srcRuntime && \
     cd srcRuntime && \
     git checkout $RUNTIME_VERSION && \
-    ./gradlew -Dorg.gradle.daemon=false build || ( echo "Build failed. Stopping" && exit 102 ) && \
+    ./gradlew build || ( echo "Build failed. Stopping" && exit 102 ) && \
     cp $(echo build/libs/JavaRuntime-*.jar) /root/ls/launcher-modules/ && \
     cp -R runtime/* /root/ls/runtime/ && rm -rf $HOME/.gradle && \
-    cd ..; \
-  fi
+    cd ..
 
 # DOWNLOAD LIBERICA JDK
 
