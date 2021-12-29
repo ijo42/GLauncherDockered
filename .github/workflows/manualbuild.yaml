@@ -8,11 +8,11 @@ on:
       launcher_ref:
         description: 'Git ref on GravitLauncher repo'
         required: false
-        default: 'latest'
+        default: 'master'
       runtime_ref:
         description: 'Git ref on Runtime repo'
         required: false
-        default: 'latest'
+        default: 'master'
 
 jobs:
   build:
