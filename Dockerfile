@@ -45,8 +45,7 @@ LABEL maintainer="ijo42 <admin@ijo42.ru>"
 ARG OPT_PKGS="bash unzip"
 ARG GLIBC_REPO=sgerrand/alpine-pkg-glibc
 ARG GLIBC_VERSION=2.34-r0
-ARG OPT_JMODS="java.base,java.instrument,jdk.management,java.scripting,java.sql,jdk.unsupported,java.naming,java.desktop,jdk.crypto.cryptoki,jdk.crypto.ec"
-ARG OPT_JFXMODS="javafx.base javafx.graphics javafx.controls"
+ARG OPT_JMODS="java.base java.instrument jdk.management java.scripting java.sql jdk.unsupported java.naming java.desktop jdk.crypto.cryptoki jdk.crypto.ec javafx.base javafx.graphics javafx.controls"
 
 ### Modify argument LIBERICA_IMAGE_VARIANT or redefine it via --build-arg parameter to have specific liberica image installed:
 ###    docker build . --build-arg LIBERICA_IMAGE_VARIANT=[standard|lite|base|base-minimal]
@@ -67,20 +66,27 @@ ARG LIBERICA_VERSION=17.0.1
 ARG LIBERICA_BUILD=12
 
 ARG LIBERICA_ROOT=${LIBERICA_JVM_DIR}/jdk-${LIBERICA_VERSION}-bellsoft
-ARG LIBERICA_GLIBC=no
+ARG GLIBC=yes
 
-ARG OPT_PKGS=
 RUN \
     set +x && \
-    echo "export LANG=C.UTF-8" > /etc/profile.d/locale.sh && \
-    wget -nv -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub && \
-    for pkg in glibc glibc-bin ; do \
-        wget -nv -O ${pkg}-${GLIBC_VERSION}.apk https://github.com/${GLIBC_REPO}/releases/download/${GLIBC_VERSION}/${pkg}-${GLIBC_VERSION}.apk && \
-        apk add --no-cache ${pkg}-${GLIBC_VERSION}.apk && rm ${pkg}-${GLIBC_VERSION}.apk ; \
-    done && LIBERICA_ARCH=''                     \
+    echo "export LANG=C.UTF-8" > /etc/profile.d/locale.sh            \
+    &&    LIBSUFFIX=""                                               \
+    &&    if [ "$GLIBC" = "no" ]; then LIBSUFFIX="-musl";            \
+          else                                                       \
+            wget -nv -O /etc/apk/keys/sgerrand.rsa.pub               \
+                https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub    \
+    &&      for pkg in glibc glibc-bin ; do                          \
+                wget -nv -O ${pkg}-${GLIBC_VERSION}.apk              \
+                    https://github.com/${GLIBC_REPO}/releases/download/${GLIBC_VERSION}/${pkg}-${GLIBC_VERSION}.apk    \
+    &&          apk add --no-cache ${pkg}-${GLIBC_VERSION}.apk       \
+    &&          rm ${pkg}-${GLIBC_VERSION}.apk ;                     \
+            done                                                     \
+          fi                                                         \
+  && LIBERICA_ARCH=''                    \
   &&    case `uname -m` in               \
             x86_64)                      \
-                LIBERICA_ARCH="x64"      \
+                LIBERICA_ARCH="amd64"    \
                 ;;                       \
             aarch64)                     \
                 LIBERICA_ARCH="aarch64"  \
@@ -91,7 +97,7 @@ RUN \
         esac                             \
   &&    case "$LIBERICA_IMAGE_VARIANT" in                                   \
             standard|custom)                                                \
-                RSUFFIX=""                                                  \
+                RSUFFIX="-full"                                             \
   &&            LITE_URL="" ;;                                              \
             lite|base|base-minimal)                                         \
                 RSUFFIX="-lite"                                             \
@@ -109,8 +115,6 @@ RUN \
            ;; \
         esac; \
       fi      \
-  &&    LIBSUFFIX=""                                                        \
-  &&    if [ "$LIBERICA_GLIBC" = "no" ]; then LIBSUFFIX="-musl"; fi         \
   &&    for pkg in $OPT_PKGS ; do apk --no-cache add $pkg ; done            \
   &&    mkdir -p /tmp/java                                                  \
   &&    LIBERICA_BUILD_STR=${LIBERICA_BUILD:+"+${LIBERICA_BUILD}"}          \
@@ -119,7 +123,7 @@ RUN \
   &&    echo "Download ${PKG_URL}"                                                                   \
   &&    wget "${PKG_URL}" -O /tmp/java/jdk.tar.gz                                                    \
   &&    SHA_URL="https://download.bell-sw.com/java/${LIBERICA_VERSION}${LIBERICA_BUILD_STR}/docker/sha1sum.txt" \
-  &&    if [[ ${LIBERICA_IMAGE_VARIANT} == "standard" || ${LIBERICA_IMAGE_VARIANT} == "custom" ]]; then                                                    \
+  &&    if [[ ${LIBERICA_IMAGE_VARIANT} == "standard" || ${LIBERICA_IMAGE_VARIANT} == "custom" ]]; then         \
           SHA_URL="https://download.bell-sw.com/sha1sum/java/${LIBERICA_VERSION}${LIBERICA_BUILD_STR}";         \
         fi \
   &&    SHA1=$(wget -q "${SHA_URL}" -O -          \
@@ -134,17 +138,16 @@ RUN \
                 apk --no-cache add binutils                 \
   &&            mkdir -pv "${LIBERICA_JVM_DIR}"             \
   &&            ${UNPACKED_ROOT}/bin/jlink                  \
-                    --add-modules ${OPT_JMODS}              \
                     --no-header-files                       \
+                    --add-modules                           \
+                       $(echo $OPT_JMODS | sed -e "s/ /,/g")\
                     --no-man-pages --strip-debug            \
                     --vm=server                             \
                     --output "${LIBERICA_ROOT}"             \
-  &&            wget -nv -O /tmp/javafx-jmods.zip "https://download2.gluonhq.com/openjfx/17.0.1/openjfx-17.0.1_linux-${LIBERICA_ARCH}_bin-jmods.zip" && \
-                unzip -q /tmp/javafx-jmods.zip -d /tmp/ && \
-                mkdir -p ${LIBERICA_ROOT}/jmods && \
-                for JMOD in $OPT_JFXMODS ; \
-                    do cp "/tmp/javafx-jmods-17.0.1/${JMOD}.jmod" "${LIBERICA_ROOT}/jmods/${JMOD}.jmod" ; \
-                done \
+  &&            mkdir -p ${LIBERICA_ROOT}/jmods/            \
+  &&            for JMOD in $OPT_JMODS ;                    \
+                    do cp "/tmp/java/jdk-${LIBERICA_VERSION}${RSUFFIX}/jmods/${JMOD}.jmod" "${LIBERICA_ROOT}/jmods/${JMOD}.jmod" ; \
+                done                                        \
   &&            apk del binutils ;;                         \
             base)                                           \
                 apk --no-cache add binutils                 \
