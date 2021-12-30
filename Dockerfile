@@ -1,6 +1,6 @@
 # DOWNLOAD OR BUILD LAUNCHSERVER FILES
 
-FROM bellsoft/liberica-openjdk-debian:17 as launcher-base
+FROM --platform=$BUILDPLATFORM bellsoft/liberica-openjdk-debian:17 as launcher-base
 
 ### Modify argument LAUNCHER_VERSION or redefine it via --build-arg parameter to have specific LaunchServer version installed:
 ###    docker build . --build-arg LAUNCHER_VERSION=v5.1.8
@@ -38,7 +38,7 @@ RUN apt-get -qq update < /dev/null && apt-get install -qqy git < /dev/null && \
 
 # DOWNLOAD LIBERICA JDK
 
-FROM lsiobase/alpine:3.14 as liberica
+FROM --platform=$BUILDPLATFORM lsiobase/alpine:3.14 as liberica
 
 LABEL maintainer="ijo42 <admin@ijo42.ru>"
 

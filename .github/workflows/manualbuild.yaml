@@ -38,6 +38,7 @@ jobs:
           file: ./Dockerfile
           tags: "${{ env.DOCKER_IMAGE }}:${{ github.event.inputs.launcher_ref }}"
           push: true
+          platforms: linux/amd64,linux/arm64
           build-args: |
             "LAUNCHER_VERSION=${{ github.event.inputs.launcher_ref }}"
             "RUNTIME_VERSION=${{ github.event.inputs.runtime_ref }}"
