@@ -1,6 +1,50 @@
-# DOWNLOAD OR BUILD LAUNCHSERVER FILES
+FROM debian:10-slim as glibc-base
 
-FROM --platform=$BUILDPLATFORM bellsoft/liberica-openjdk-debian:17 as launcher-base
+ARG GLIBC_VERSION=2.28
+ARG GLIBC_PREFIX=/usr/glibc
+ARG LANG=en_US.UTF-8
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN     apt-get update \
+  &&    apt-get install -y curl build-essential gawk bison python3 texinfo gettext \
+  &&    cd /root \
+  &&    curl -SL http://ftp.gnu.org/gnu/glibc/glibc-${GLIBC_VERSION}.tar.gz | tar xzf - \
+  &&    mkdir -p /root/build \
+  &&    cd /root/build \
+  &&    ../glibc-${GLIBC_VERSION}/configure \
+          --prefix=${GLIBC_PREFIX} \
+          --libdir="${GLIBC_PREFIX}/lib" \
+          --libexecdir="${GLIBC_PREFIX}/lib" \
+          --enable-multi-arch \
+          --enable-stack-protector=strong \
+  &&    make -j`nproc` \
+  &&    make DESTDIR=/root/dest install \
+  &&    RTLD=`find /root/dest${GLIBC_PREFIX}/lib -name 'ld-linux-*.so.*'` \
+  &&    [ -x "$RTLD" ] \
+  &&    LOCALEDEF="$RTLD --library-path /root/dest${GLIBC_PREFIX}/lib /root/dest${GLIBC_PREFIX}/bin/localedef --alias-file=/root/glibc-${GLIBC_VERSION}/intl/locale.alias" \
+  &&    export I18NPATH=/root/glibc-${GLIBC_VERSION}/localedata \
+  &&    export GCONVPATH=/root/glibc-${GLIBC_VERSION}/iconvdata \
+  &&    LOCALE=$(echo ${LANG} | cut -d. -f1) \
+  &&    CHARMAP=$(echo ${LANG} | cut -d. -f2) \
+  &&    mkdir -pv /root/dest${GLIBC_PREFIX}/lib/locale \
+  &&    cd /root/glibc-${GLIBC_VERSION}/localedata \
+  &&    ${LOCALEDEF} -i locales/$LOCALE -f charmaps/$CHARMAP --prefix=/root/dest $LANG \
+  &&    cd /root \
+  &&    rm -rf build glibc-${GLIBC_VERSION} \
+  &&    cd /root/dest${GLIBC_PREFIX} \
+  &&    ( strip bin/* sbin/* lib/* || true ) \
+  &&    echo "/usr/local/lib" > /root/dest${GLIBC_PREFIX}/etc/ld.so.conf \
+  &&    echo "${GLIBC_PREFIX}/lib" >> /root/dest${GLIBC_PREFIX}/etc/ld.so.conf \
+  &&    echo "/usr/lib" >> /root/dest${GLIBC_PREFIX}/etc/ld.so.conf \
+  &&    echo "/lib" >> /root/dest${GLIBC_PREFIX}/etc/ld.so.conf
+
+RUN cd /root/dest${GLIBC_PREFIX} && \
+  rm -rf etc/rpc var include share bin sbin/[^l]*  \
+	lib/*.o lib/*.a lib/audit lib/gconv lib/getconf
+
+
+# DOWNLOAD OR BUILD LAUNCHSERVER FILES
+FROM eclipse-temurin:17-jdk-alpine as launcher-base
 
 ### Modify argument LAUNCHER_VERSION or redefine it via --build-arg parameter to have specific LaunchServer version installed:
 ###    docker build . --build-arg LAUNCHER_VERSION=v5.1.8
@@ -13,7 +57,7 @@ ARG GITHUB_REPO="GravitLauncher/Launcher"
 ARG GITHUB_RUNTIME_REPO="GravitLauncher/LauncherRuntime"
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get -qq update < /dev/null && apt-get install -qqy git < /dev/null && \
+RUN apk add --no-cache git && \
     mkdir -p /root/ls/launcher-modules /root/ls/runtime && set -e && \
     echo "Clone main repository" && \
     git clone -b dev https://github.com/${GITHUB_REPO}.git src && \
@@ -23,7 +67,7 @@ RUN apt-get -qq update < /dev/null && apt-get install -qqy git < /dev/null && \
     git submodule sync && \
     git submodule update --init --recursive && \
     echo "Build" && \
-    ./gradlew build || ( echo "Build failed. Stopping" && exit 101 ) && \
+    ./gradlew build -Dorg.gradle.daemon=false || ( echo "Build failed. Stopping" && exit 101 ) && \
     PTH=LaunchServer/build/libs && \
     cp -R ${PTH}/LaunchServer.jar ${PTH}/launcher-libraries ${PTH}/launcher-libraries-compile ${PTH}/libraries /root/ls && \
     cd .. \
@@ -32,30 +76,28 @@ RUN apt-get -qq update < /dev/null && apt-get install -qqy git < /dev/null && \
     git clone -b dev https://github.com/${GITHUB_RUNTIME_REPO}.git srcRuntime && \
     cd srcRuntime && \
     git checkout $RUNTIME_VERSION && \
-    ./gradlew build || ( echo "Build failed. Stopping" && exit 102 ) && \
+    ./gradlew build -Dorg.gradle.daemon=false || ( echo "Build failed. Stopping" && exit 102 ) && \
     cp $(echo build/libs/JavaRuntime-*.jar) /root/ls/launcher-modules/ && \
-    cp -R runtime/* /root/ls/runtime/ && rm -rf $HOME/.gradle
+    cp -R runtime/* /root/ls/runtime/
 
-# DOWNLOAD LIBERICA JDK
 
-FROM --platform=$BUILDPLATFORM lsiobase/alpine:3.14 as liberica
+# BUILD FINAL IMAGE
+# src: https://github.com/bell-sw/Liberica/blob/c39965b0c4c942295d89000781f933183fbcb9ce/docker/repos/liberica-openjdk-alpine/17/Dockerfile
+
+FROM lsiobase/alpine:3.14 as liberica
 
 LABEL maintainer="ijo42 <admin@ijo42.ru>"
 
+ARG GLIBC_PREFIX=/usr/glibc
+ARG EXT_GCC_LIBS_URL=https://archive.archlinux.org/packages/g/gcc-libs/gcc-libs-8.3.0-1-x86_64.pkg.tar.xz
+ARG EXT_ZLIB_URL=https://archive.archlinux.org/packages/z/zlib/zlib-1%3A1.2.11-3-x86_64.pkg.tar.xz
+ARG LANG=en_US.UTF-8
+
 ARG OPT_PKGS="bash unzip"
-ARG GLIBC_REPO=sgerrand/alpine-pkg-glibc
-ARG GLIBC_VERSION=2.34-r0
-ARG OPT_JMODS="java.base java.instrument jdk.management java.scripting java.sql jdk.unsupported java.naming java.desktop jdk.crypto.cryptoki jdk.crypto.ec javafx.base javafx.graphics javafx.controls"
+ARG OPT_JMODS="java.base,java.instrument,jdk.management,java.scripting,java.sql,jdk.unsupported,java.naming,java.desktop,jdk.crypto.cryptoki,jdk.crypto.ec,javafx.base,javafx.graphics,javafx.controls"
 
-### Modify argument LIBERICA_IMAGE_VARIANT or redefine it via --build-arg parameter to have specific liberica image installed:
-###    docker build . --build-arg LIBERICA_IMAGE_VARIANT=[standard|lite|base|base-minimal]
-### base: minimal image with compressed java.base module, Server VM and optional files stripped, ~37 MB with Alpine base
-### base-minimal: minimal image with compressed java.base module, Minimal VM and optional files stripped
-### lite: lite image with minimal footprint and Server VM, ~ 100 MB
-### standard: standard jdk image with Server VM and jmods, can be used to create arbirary module set, ~180 MB
-
-ENV  LANG=en_US.UTF-8 \
-     LANGUAGE=en_US:en
+ENV  LANG=${LANG} \
+     LANGUAGE=${LANG}:en
 #	 LC_ALL=en_US.UTF-8
 
 ARG LIBERICA_IMAGE_VARIANT=custom
@@ -66,38 +108,50 @@ ARG LIBERICA_VERSION=17.0.1
 ARG LIBERICA_BUILD=12
 
 ARG LIBERICA_ROOT=${LIBERICA_JVM_DIR}/jdk-${LIBERICA_VERSION}-bellsoft
-ARG GLIBC=yes
 
-RUN \
-    set +x && \
-    echo "export LANG=C.UTF-8" > /etc/profile.d/locale.sh            \
-    &&    LIBSUFFIX=""                                               \
-    &&    if [ "$GLIBC" = "no" ]; then LIBSUFFIX="-musl";            \
-          else                                                       \
-            wget -nv -O /etc/apk/keys/sgerrand.rsa.pub               \
-                https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub    \
-    &&      for pkg in glibc glibc-bin ; do                          \
-                wget -nv -O ${pkg}-${GLIBC_VERSION}.apk              \
-                    https://github.com/${GLIBC_REPO}/releases/download/${GLIBC_VERSION}/${pkg}-${GLIBC_VERSION}.apk    \
-    &&          apk add --no-cache ${pkg}-${GLIBC_VERSION}.apk       \
-    &&          rm ${pkg}-${GLIBC_VERSION}.apk ;                     \
-            done                                                     \
-          fi                                                         \
-  && LIBERICA_ARCH=''                    \
-  &&    case `uname -m` in               \
-            x86_64)                      \
-                LIBERICA_ARCH="amd64"    \
-                ;;                       \
-            aarch64)                     \
-                LIBERICA_ARCH="aarch64"  \
-                ;;                       \
-            *)                           \
-                LIBERICA_ARCH=`uname -m` \
-                ;;                       \
-        esac                             \
+COPY --from=glibc-base /root/dest/ /
+
+RUN LIBERICA_ARCH=''                               \
+  && set -x                                        \
+  &&    case `uname -m` in                         \
+            x86_64)                                \
+                LIBERICA_ARCH="amd64"              \
+                ;;                                 \
+            i686)                                  \
+                LIBERICA_ARCH="i586"               \
+                ;;                                 \
+            aarch64)                               \
+                LIBERICA_ARCH="aarch64"            \
+                ;;                                 \
+            armv[67]l)                             \
+                LIBERICA_ARCH="arm32-vfp-hflt";    \
+                ;;                                 \
+            ppc64le)                               \
+                LIBERICA_ARCH="ppc64le";           \
+                ;;                                 \
+            *)                                     \
+                LIBERICA_ARCH=`uname -m`           \
+                ;;                                 \
+        esac                                       \
+  &&    ln -s ${GLIBC_PREFIX}/lib/ld-*.so* /lib                   \
+  &&    ln -s ${GLIBC_PREFIX}/etc/ld.so.cache /etc                \
+  &&    if [ "$LIBERICA_ARCH" = "amd64" ]; then                   \
+          ln -s /lib /lib64                                       \
+  &&      mkdir /tmp/zlib                                         \
+  &&      wget -O - "${EXT_ZLIB_URL}" | tar xJf - -C /tmp/zlib    \
+  &&      cp -dP /tmp/zlib/usr/lib/libz.so* "${GLIBC_PREFIX}/lib" \
+  &&      rm -rf /tmp/zlib                                        \
+  &&      mkdir /tmp/gcc                                          \
+  &&      wget -O - "${EXT_GCC_LIBS_URL}" | tar xJf - -C /tmp/gcc \
+  &&      cp -dP /tmp/gcc/usr/lib/libgcc* /tmp/gcc/usr/lib/libstdc++* "${GLIBC_PREFIX}/lib" \
+  &&      rm -rf /tmp/gcc;     \
+        fi                     \
+  &&    for pkg in $OPT_PKGS ; do apk --no-cache add $pkg ; done \
+  &&    ${GLIBC_PREFIX}/sbin/ldconfig                            \
+  &&    echo 'hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4' > /etc/nsswitch.conf \
   &&    case "$LIBERICA_IMAGE_VARIANT" in                                   \
-            standard|custom)                                                \
-                RSUFFIX="-full"                                             \
+            standard|custom)                                                       \
+                RSUFFIX="-full"                                                  \
   &&            LITE_URL="" ;;                                              \
             lite|base|base-minimal)                                         \
                 RSUFFIX="-lite"                                             \
@@ -118,7 +172,7 @@ RUN \
   &&    for pkg in $OPT_PKGS ; do apk --no-cache add $pkg ; done            \
   &&    mkdir -p /tmp/java                                                  \
   &&    LIBERICA_BUILD_STR=${LIBERICA_BUILD:+"+${LIBERICA_BUILD}"}          \
-  &&    PKG="bellsoft-jdk${LIBERICA_VERSION}${LIBERICA_BUILD_STR}-linux-${LIBERICA_ARCH}${LIBSUFFIX}${RSUFFIX}.tar.gz" \
+  &&    PKG="bellsoft-jdk${LIBERICA_VERSION}${LIBERICA_BUILD_STR}-linux-${LIBERICA_ARCH}${RSUFFIX}.tar.gz" \
   &&    PKG_URL="https://download.bell-sw.com/java/${LIBERICA_VERSION}${LIBERICA_BUILD_STR}${LITE_URL}/${PKG}"         \
   &&    echo "Download ${PKG_URL}"                                                                   \
   &&    wget "${PKG_URL}" -O /tmp/java/jdk.tar.gz                                                    \
@@ -139,14 +193,16 @@ RUN \
   &&            mkdir -pv "${LIBERICA_JVM_DIR}"             \
   &&            ${UNPACKED_ROOT}/bin/jlink                  \
                     --no-header-files                       \
-                    --add-modules                           \
-                       $(echo $OPT_JMODS | sed -e "s/ /,/g")\
+                    --add-modules $OPT_JMODS                \
+                    --module-path $UNPACKED_ROOT/jmods      \
                     --no-man-pages --strip-debug            \
                     --vm=server                             \
                     --output "${LIBERICA_ROOT}"             \
   &&            mkdir -p ${LIBERICA_ROOT}/jmods/            \
-  &&            for JMOD in $OPT_JMODS ;                    \
-                    do cp "/tmp/java/jdk-${LIBERICA_VERSION}${RSUFFIX}/jmods/${JMOD}.jmod" "${LIBERICA_ROOT}/jmods/${JMOD}.jmod" ; \
+  &&            for JMOD in  \
+                    $(echo $OPT_JMODS | sed -e "s/,/ /g") ; \
+                    do cp "/tmp/java/jdk-${LIBERICA_VERSION}${RSUFFIX}/jmods/${JMOD}.jmod"  \
+                       "${LIBERICA_ROOT}/jmods/${JMOD}.jmod" ; \
                 done                                        \
   &&            apk del binutils ;;                         \
             base)                                           \
@@ -198,7 +254,7 @@ RUN \
                       >> ${LIBERICA_ROOT}/lib/jvm.cfg     \
                   ;;                                      \
                   minimal)                                \
-                   ([ ! -f ${LIBERICA_ROOT}/lib/minimal ] \
+                    ([ ! -f ${LIBERICA_ROOT}/lib/minimal ]\
   &&                  echo "Standard Liberica JDK does not have minimal VM" \
   &&                  exit 1 )                            \
   &&                rm -rf ${LIBERICA_ROOT}/lib/server    \
@@ -214,10 +270,9 @@ RUN \
                   *) echo "Unknows LIBERICA_VM value \"${LIBERICA_VM}\"" \
   &&                 exit 1 ;;                            \
                 esac                                      \
-  &&            apk del binutils                          \
-            ;;                                            \
+  &&            apk del binutils ;;                       \
             *)                                            \
-                MODS=$(ls ${UNPACKED_ROOT}/jmods/        \
+                MODS=$( ls ${UNPACKED_ROOT}/jmods/        \
                       | sed "s/.jmod//"                   \
                       | grep -v javafx                    \
                       | tr '\n' ', '                      \
