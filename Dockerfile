@@ -1,4 +1,4 @@
-FROM debian:10-slim as glibc-base
+FROM --platform=amd64 debian:10-slim as glibc-base
 
 ARG GLIBC_VERSION=2.28
 ARG GLIBC_PREFIX=/usr/glibc
@@ -44,7 +44,7 @@ RUN cd /root/dest${GLIBC_PREFIX} && \
 
 
 # DOWNLOAD OR BUILD LAUNCHSERVER FILES
-FROM eclipse-temurin:17-jdk-alpine as launcher-base
+FROM --platform=amd64 eclipse-temurin:17-jdk-alpine as launcher-base
 
 ### Modify argument LAUNCHER_VERSION or redefine it via --build-arg parameter to have specific LaunchServer version installed:
 ###    docker build . --build-arg LAUNCHER_VERSION=v5.1.8
@@ -84,7 +84,7 @@ RUN apk add --no-cache git && \
 # BUILD FINAL IMAGE
 # src: https://github.com/bell-sw/Liberica/blob/c39965b0c4c942295d89000781f933183fbcb9ce/docker/repos/liberica-openjdk-alpine/17/Dockerfile
 
-FROM lsiobase/alpine:3.14 as liberica
+FROM --platform=$BUILDPLATFORM lsiobase/alpine:3.14 as liberica
 
 LABEL maintainer="ijo42 <admin@ijo42.ru>"
 
