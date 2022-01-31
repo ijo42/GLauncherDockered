@@ -94,7 +94,7 @@ ARG EXT_ZLIB_URL=https://archive.archlinux.org/packages/z/zlib/zlib-1%3A1.2.11-3
 ARG LANG=en_US.UTF-8
 
 ARG OPT_PKGS="bash unzip"
-ARG OPT_JMODS="java.base,java.instrument,jdk.management,java.scripting,java.sql,jdk.unsupported,java.naming,java.desktop,jdk.crypto.cryptoki,jdk.crypto.ec,javafx.base,javafx.graphics,javafx.controls"
+ARG OPT_JMODS="java.base,java.net.http,java.instrument,jdk.management,java.scripting,java.sql,jdk.unsupported,java.naming,java.desktop,jdk.crypto.cryptoki,jdk.crypto.ec,javafx.base,javafx.graphics,javafx.controls"
 
 ENV  LANG=${LANG} \
      LANGUAGE=${LANG}:en
