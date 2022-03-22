@@ -77,7 +77,7 @@ RUN apk add --no-cache git && \
     cd srcRuntime && \
     git checkout $RUNTIME_VERSION && \
     ./gradlew build -Dorg.gradle.daemon=false || ( echo "Build failed. Stopping" && exit 102 ) && \
-    cp $(echo build/libs/JavaRuntime-*.jar) /root/ls/launcher-modules/ && \
+    cp $(echo build/libs/JavaRuntime*.jar) /root/ls/launcher-modules/ && \
     cp -R runtime/* /root/ls/runtime/
 
 
