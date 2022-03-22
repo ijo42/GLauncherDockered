@@ -82,7 +82,7 @@ RUN apk add --no-cache git && \
 
 
 # BUILD FINAL IMAGE
-# src: https://github.com/bell-sw/Liberica/blob/c39965b0c4c942295d89000781f933183fbcb9ce/docker/repos/liberica-openjdk-alpine/17/Dockerfile
+# src: https://github.com/bell-sw/Liberica/blob/8548f0d9f76f6e70389daa19f6d705ed08cfeed9/docker/repos/liberica-openjdk-alpine/17/Dockerfile
 
 FROM --platform=$BUILDPLATFORM lsiobase/alpine:3.14 as liberica
 
@@ -104,8 +104,8 @@ ARG LIBERICA_IMAGE_VARIANT=custom
 ARG LIBERICA_VM="server"
 
 ARG LIBERICA_JVM_DIR=/usr/lib/jvm
-ARG LIBERICA_VERSION=17.0.1
-ARG LIBERICA_BUILD=12
+ARG LIBERICA_VERSION=17.0.2
+ARG LIBERICA_BUILD=9
 
 ARG LIBERICA_ROOT=${LIBERICA_JVM_DIR}/jdk-${LIBERICA_VERSION}-bellsoft
 
@@ -188,23 +188,6 @@ RUN LIBERICA_ARCH=''                               \
   &&    tar xzf /tmp/java/jdk.tar.gz -C /tmp/java           \
   &&    UNPACKED_ROOT=/tmp/java/jdk-${LIBERICA_VERSION}*    \
   &&    case $LIBERICA_IMAGE_VARIANT in                     \
-            custom)                                         \
-                apk --no-cache add binutils                 \
-  &&            mkdir -pv "${LIBERICA_JVM_DIR}"             \
-  &&            ${UNPACKED_ROOT}/bin/jlink                  \
-                    --no-header-files                       \
-                    --add-modules $OPT_JMODS                \
-                    --module-path $UNPACKED_ROOT/jmods      \
-                    --no-man-pages --strip-debug            \
-                    --vm=server                             \
-                    --output "${LIBERICA_ROOT}"             \
-  &&            mkdir -p ${LIBERICA_ROOT}/jmods/            \
-  &&            for JMOD in  \
-                    $(echo $OPT_JMODS | sed -e "s/,/ /g") ; \
-                    do cp "/tmp/java/jdk-${LIBERICA_VERSION}${RSUFFIX}/jmods/${JMOD}.jmod"  \
-                       "${LIBERICA_ROOT}/jmods/${JMOD}.jmod" ; \
-                done                                        \
-  &&            apk del binutils ;;                         \
             base)                                           \
                 apk --no-cache add binutils                 \
   &&            mkdir -pv "${LIBERICA_JVM_DIR}"             \
