@@ -14,9 +14,9 @@ Using this image allows us to use the same user/group ids in the container as on
 
 # Deployment
 
-Tags | Description
------|------------
-`latest` | Using the `latest` tag will pull the weekly-builded image.
+| Tags     | Description                                                |
+|----------|------------------------------------------------------------|
+| `latest` | Using the `latest` tag will pull the weekly-builded image. |
 
 ## Pre-built images `latest`
 
@@ -29,10 +29,12 @@ services:
     image: ijo42/glauncher:latest
     container_name: launchserver
     restart: unless-stopped
+    tty: true
+    stdin_open: true
     environment:
       - TZ=Europe/Moscow # Timezone
-      - PUID=1000 # User ID
-      - PGID=1000 # Group ID
+      - PUID=1000  # User  ID `id $(whoami) -u`
+      - PGID=1000  # Group ID `id $(whoami) -g`
     ports:
       - 9274:9274
     volumes:
@@ -55,13 +57,12 @@ docker create \
 
 # Configuration
 
-Configuration | Explanation
------------- | -------------
-[Restart policy](https://docs.docker.com/compose/compose-file/#restart) | "no", always, on-failure, unless-stopped
-TZ | Timezone
-PUID | for UserID
-PGID | for GroupID
-
+| Configuration                                                           | Explanation                              |
+|-------------------------------------------------------------------------|------------------------------------------|
+| [Restart policy](https://docs.docker.com/compose/compose-file/#restart) | "no", always, on-failure, unless-stopped |
+| TZ                                                                      | Timezone                                 |
+| PUID                                                                    | for UserID                               |
+| PGID                                                                    | for GroupID                              |
 
 ## User / Group Identifiers
 
@@ -93,12 +94,14 @@ services:
         - LAUNCHER_VERSION=a4355d1d
         - RUNTIME_VERSION=aa6fe1a8
     restart: unless-stopped
+    tty: true
+    stdin_open: true
     volumes:
       - /host/path/to/launchserver:/app/launchserver
     environment:
       - TZ=Europe/Moscow # Timezone
-      - PUID=1000  # User ID
-      - PGID=1000  # Group ID
+      - PUID=1000  # User  ID `id $(whoami) -u`
+      - PGID=1000  # Group ID `id $(whoami) -g`
 ```
 
 1. Clone the repository: `git clone https://github.com/ijo42/GLauncherDockered.git`
