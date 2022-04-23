@@ -1,4 +1,4 @@
-FROM --platform=amd64 debian:10-slim as glibc-base
+FROM --platform=amd64 debian:11-slim as glibc-base
 
 ARG GLIBC_VERSION=2.28
 ARG GLIBC_PREFIX=/usr/glibc
