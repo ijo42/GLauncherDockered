@@ -8,7 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN     apt-get update \
   &&    apt-get install -y curl build-essential gawk bison python3 texinfo gettext \
   &&    cd /root \
-  &&    curl -SL http://ftp.gnu.org/gnu/glibc/glibc-${GLIBC_VERSION}.tar.gz | tar xzf - \
+  &&    curl -SL https://ftp.gnu.org/gnu/glibc/glibc-${GLIBC_VERSION}.tar.gz | tar xzf - \
   &&    mkdir -p /root/build \
   &&    cd /root/build \
   &&    ../glibc-${GLIBC_VERSION}/configure \
@@ -44,7 +44,7 @@ RUN cd /root/dest${GLIBC_PREFIX} && \
 
 
 # DOWNLOAD OR BUILD LAUNCHSERVER FILES
-FROM --platform=$BUILDPLATFORM eclipse-temurin:17-jdk-alpine as launcher-base
+FROM --platform=$BUILDPLATFORM eclipse-temurin:17-jdk as launcher-base
 
 ### Modify argument LAUNCHER_VERSION or redefine it via --build-arg parameter to have specific LaunchServer version installed:
 ###    docker build . --build-arg LAUNCHER_VERSION=v5.1.8
@@ -57,7 +57,7 @@ ARG GITHUB_REPO="GravitLauncher/Launcher"
 ARG GITHUB_RUNTIME_REPO="GravitLauncher/LauncherRuntime"
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apk add --no-cache git && \
+RUN apt-get update && apt-get install -y git && \
     mkdir -p /root/ls/launcher-modules /root/ls/runtime && set -e && \
     echo "Clone main repository" && \
     git clone -b dev https://github.com/${GITHUB_REPO}.git src && \
