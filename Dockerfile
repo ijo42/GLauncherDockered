@@ -201,7 +201,7 @@ RUN LIBERICA_ARCH=''                               \
   &&            mkdir -p ${LIBERICA_ROOT}/jmods/            \
   &&            for JMOD in  \
                     $(echo $OPT_JMODS | sed -e "s/,/ /g") ; \
-                    do cp "${UNPACKED_ROOT}/jmods/${JMOD}.jmod"  \
+                    do cp $UNPACKED_ROOT/jmods/${JMOD}.jmod  \
                        "${LIBERICA_ROOT}/jmods/${JMOD}.jmod" ; \
                 done                                        \
   &&            apk del binutils ;;                         \
