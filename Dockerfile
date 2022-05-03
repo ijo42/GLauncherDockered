@@ -44,7 +44,7 @@ RUN cd /root/dest${GLIBC_PREFIX} && \
 
 
 # DOWNLOAD OR BUILD LAUNCHSERVER FILES
-FROM --platform=$BUILDPLATFORM eclipse-temurin:17-jdk-alpine as launcher-base
+FROM --platform=$BUILDPLATFORM eclipse-temurin:18-jdk-alpine as launcher-base
 
 ### Modify argument LAUNCHER_VERSION or redefine it via --build-arg parameter to have specific LaunchServer version installed:
 ###    docker build . --build-arg LAUNCHER_VERSION=v5.1.8
