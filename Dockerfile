@@ -8,7 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN     apt-get update \
   &&    apt-get install -y curl build-essential gawk bison python3 texinfo gettext \
   &&    cd /root \
-  &&    curl -SL http://ftp.gnu.org/gnu/glibc/glibc-${GLIBC_VERSION}.tar.gz | tar xzf - \
+  &&    curl -SL https://ftp.gnu.org/gnu/glibc/glibc-${GLIBC_VERSION}.tar.gz | tar xzf - \
   &&    mkdir -p /root/build \
   &&    cd /root/build \
   &&    ../glibc-${GLIBC_VERSION}/configure \
@@ -188,6 +188,23 @@ RUN LIBERICA_ARCH=''                               \
   &&    tar xzf /tmp/java/jdk.tar.gz -C /tmp/java           \
   &&    UNPACKED_ROOT=/tmp/java/jdk-${LIBERICA_VERSION}*    \
   &&    case $LIBERICA_IMAGE_VARIANT in                     \
+            custom)                                         \
+                apk --no-cache add binutils                 \
+  &&            mkdir -pv "${LIBERICA_JVM_DIR}"             \
+  &&            ${UNPACKED_ROOT}/bin/jlink                  \
+                    --no-header-files                       \
+                    --add-modules $OPT_JMODS                \
+                    --module-path $UNPACKED_ROOT/jmods      \
+                    --no-man-pages --strip-debug            \
+                    --vm=server                             \
+                    --output "${LIBERICA_ROOT}"             \
+  &&            mkdir -p ${LIBERICA_ROOT}/jmods/            \
+  &&            for JMOD in  \
+                    $(echo $OPT_JMODS | sed -e "s/,/ /g") ; \
+                    do cp "${UNPACKED_ROOT}/jmods/${JMOD}.jmod"  \
+                       "${LIBERICA_ROOT}/jmods/${JMOD}.jmod" ; \
+                done                                        \
+  &&            apk del binutils ;;                         \
             base)                                           \
                 apk --no-cache add binutils                 \
   &&            mkdir -pv "${LIBERICA_JVM_DIR}"             \
