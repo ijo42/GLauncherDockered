@@ -14,9 +14,10 @@ Using this image allows us to use the same user/group ids in the container as on
 
 # Deployment
 
-| Tags     | Description                                                |
-|----------|------------------------------------------------------------|
-| `latest` | Using the `latest` tag will pull the weekly-builded image. |
+| Tags           | Description                                                          |
+|----------------|----------------------------------------------------------------------|
+| `latest`       | Using the `latest` tag will pull the weekly-builded image.           |
+| `latest-arm64` | Using the `latest` tag will pull the weekly-builded image. (testing) |
 
 ## Pre-built images `latest`
 

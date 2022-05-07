@@ -38,7 +38,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           file: ./Dockerfile.aarch64
-          tags: ${{ env.DOCKER_IMAGE }}
+          tags: ${{ env.DOCKER_IMAGE }}:latest-arm64
           push: true
           platforms: linux/arm64
           cache-from: type=gha

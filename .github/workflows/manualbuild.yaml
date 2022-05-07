@@ -49,7 +49,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           file: ./Dockerfile.aarch64
-          tags: "${{ env.DOCKER_IMAGE }}:${{ github.event.inputs.launcher_ref }}"
+          tags: "${{ env.DOCKER_IMAGE }}:${{ github.event.inputs.launcher_ref }}-arm64"
           push: true
           platforms: linux/arm64
           build-args: |
