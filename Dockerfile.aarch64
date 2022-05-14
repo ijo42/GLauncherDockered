@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM debian:10-slim as glibc-base
+FROM --platform=$TARGETPLATFORM debian:10-slim as glibc-base
 
 ARG GLIBC_VERSION=2.28
 ARG GLIBC_PREFIX=/usr/glibc
@@ -84,10 +84,11 @@ RUN apt-get update && apt-get install -y git && \
 # BUILD FINAL IMAGE
 # src: https://github.com/bell-sw/Liberica/blob/8548f0d9f76f6e70389daa19f6d705ed08cfeed9/docker/repos/liberica-openjdk-alpine/17/Dockerfile
 
-FROM --platform=$BUILDPLATFORM lsiobase/alpine:3.15-version-45def4f0 as liberica
+FROM --platform=$TARGETPLATFORM lsiobase/alpine:3.15 as liberica
 
 LABEL maintainer="ijo42 <admin@ijo42.ru>"
 
+ARG TARGETPLATFORM
 ARG GLIBC_PREFIX=/usr/glibc
 ARG EXT_GCC_LIBS_URL=https://archive.archlinux.org/packages/g/gcc-libs/gcc-libs-8.3.0-1-x86_64.pkg.tar.xz
 ARG EXT_ZLIB_URL=https://archive.archlinux.org/packages/z/zlib/zlib-1%3A1.2.11-3-x86_64.pkg.tar.xz
@@ -113,21 +114,12 @@ COPY --from=glibc-base /root/dest/ /
 
 RUN LIBERICA_ARCH=''                               \
   && set -x                                        \
-  &&    case `uname -m` in                         \
-            x86_64)                                \
+  &&    case $TARGETPLATFORM in                         \
+            linux/amd64)                                \
                 LIBERICA_ARCH="amd64"              \
                 ;;                                 \
-            i686)                                  \
-                LIBERICA_ARCH="i586"               \
-                ;;                                 \
-            aarch64)                               \
+            linux/arm64)                               \
                 LIBERICA_ARCH="aarch64"            \
-                ;;                                 \
-            armv[67]l)                             \
-                LIBERICA_ARCH="arm32-vfp-hflt";    \
-                ;;                                 \
-            ppc64le)                               \
-                LIBERICA_ARCH="ppc64le";           \
                 ;;                                 \
             *)                                     \
                 LIBERICA_ARCH=`uname -m`           \
