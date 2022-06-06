@@ -84,7 +84,7 @@ RUN apk add --no-cache git && \
 # BUILD FINAL IMAGE
 # src: https://github.com/bell-sw/Liberica/blob/8548f0d9f76f6e70389daa19f6d705ed08cfeed9/docker/repos/liberica-openjdk-alpine/17/Dockerfile
 
-FROM --platform=$BUILDPLATFORM lsiobase/alpine:3.15-version-45def4f0 as liberica
+FROM --platform=$BUILDPLATFORM lsiobase/alpine:3.16-version-b612671e as liberica
 
 LABEL maintainer="ijo42 <admin@ijo42.ru>"
 
