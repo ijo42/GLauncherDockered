@@ -42,8 +42,8 @@ jobs:
           build-args: |
             "LAUNCHER_VERSION=${{ github.event.inputs.launcher_ref }}"
             "RUNTIME_VERSION=${{ github.event.inputs.runtime_ref }}"
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache,mode=max
 
       - name: Build and push arm64
         uses: docker/build-push-action@v3
@@ -55,6 +55,6 @@ jobs:
           build-args: |
             "LAUNCHER_VERSION=${{ github.event.inputs.launcher_ref }}"
             "RUNTIME_VERSION=${{ github.event.inputs.runtime_ref }}"
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache-arm64
+          cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache-arm64,mode=max
 
