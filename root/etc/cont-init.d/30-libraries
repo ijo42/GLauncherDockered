@@ -2,9 +2,7 @@
 
 for f in 'libraries' 'launcher-libraries' 'launcher-libraries-compile' 'runtime' 'launcher-modules' 'LaunchServer.jar' ; do \
     if [ ! -e /app/launchserver/${f} ]; then
-        echo "
-        **** missing ${f}. copying defaults ****
-        "
+        printf "\n**** missing %s. copying defaults ****\n" "${f}"
         cp -Rfv \
             /defaults/${f} \
             /app/launchserver/

@@ -110,6 +110,7 @@ ARG LIBERICA_BUILD=9
 ARG LIBERICA_ROOT=${LIBERICA_JVM_DIR}/jdk-${LIBERICA_VERSION}-bellsoft
 
 COPY --from=glibc-base /root/dest/ /
+COPY install-jmods.sh /usr/bin/install-jmods
 
 RUN LIBERICA_ARCH=''                               \
   && set -x                                        \
@@ -146,7 +147,7 @@ RUN LIBERICA_ARCH=''                               \
   &&      cp -dP /tmp/gcc/usr/lib/libgcc* /tmp/gcc/usr/lib/libstdc++* "${GLIBC_PREFIX}/lib" \
   &&      rm -rf /tmp/gcc;     \
         fi                     \
-  &&    for pkg in $OPT_PKGS ; do apk --no-cache add $pkg ; done \
+  &&    apk --no-cache add $OPT_PKGS \
   &&    ${GLIBC_PREFIX}/sbin/ldconfig                            \
   &&    echo 'hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4' > /etc/nsswitch.conf \
   &&    case "$LIBERICA_IMAGE_VARIANT" in                                   \
@@ -169,7 +170,6 @@ RUN LIBERICA_ARCH=''                               \
            ;; \
         esac; \
       fi      \
-  &&    for pkg in $OPT_PKGS ; do apk --no-cache add $pkg ; done            \
   &&    mkdir -p /tmp/java                                                  \
   &&    LIBERICA_BUILD_STR=${LIBERICA_BUILD:+"+${LIBERICA_BUILD}"}          \
   &&    PKG="bellsoft-jdk${LIBERICA_VERSION}${LIBERICA_BUILD_STR}-linux-${LIBERICA_ARCH}${RSUFFIX}.tar.gz" \
@@ -186,7 +186,8 @@ RUN LIBERICA_ARCH=''                               \
               )                                   \
   &&    echo "${SHA1} */tmp/java/jdk.tar.gz" | sha1sum -c - \
   &&    tar xzf /tmp/java/jdk.tar.gz -C /tmp/java           \
-  &&    UNPACKED_ROOT=/tmp/java/jdk-${LIBERICA_VERSION}*    \
+  &&    UNPACKED_ROOT=`find "/tmp/java/" -type d            \
+         -maxdepth 1  | grep "jdk."`                        \
   &&    case $LIBERICA_IMAGE_VARIANT in                     \
             custom)                                         \
                 apk --no-cache add binutils                 \
@@ -198,12 +199,6 @@ RUN LIBERICA_ARCH=''                               \
                     --no-man-pages --strip-debug            \
                     --vm=server                             \
                     --output "${LIBERICA_ROOT}"             \
-  &&            mkdir -p ${LIBERICA_ROOT}/jmods/            \
-  &&            for JMOD in  \
-                    $(echo $OPT_JMODS | sed -e "s/,/ /g") ; \
-                    do cp $UNPACKED_ROOT/jmods/${JMOD}.jmod  \
-                       "${LIBERICA_ROOT}/jmods/${JMOD}.jmod" ; \
-                done                                        \
   &&            apk del binutils ;;                         \
             base)                                           \
                 apk --no-cache add binutils                 \
@@ -289,11 +284,14 @@ RUN LIBERICA_ARCH=''                               \
   &&            apk del binutils ;;                       \
         esac                                              \
   &&    ln -s $LIBERICA_ROOT /usr/lib/jvm/jdk             \
+  &&    UNPACKED_ROOT=${UNPACKED_ROOT}                    \
+          install-jmods ${OPT_JMODS//,/ }                 \
   &&    rm -rf /tmp/java                                  \
   &&    rm -rf /tmp/hsperfdata_root
 
 ENV JAVA_HOME=${LIBERICA_ROOT} \
-	PATH=${LIBERICA_ROOT}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+	PATH=${LIBERICA_ROOT}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+	JMODS_CACHE=/app/launchserver/.jmods/
 
 WORKDIR /app/launchserver
 
