@@ -104,8 +104,8 @@ ARG LIBERICA_IMAGE_VARIANT=custom
 ARG LIBERICA_VM="server"
 
 ARG LIBERICA_JVM_DIR=/usr/lib/jvm
-ARG LIBERICA_VERSION=17.0.2
-ARG LIBERICA_BUILD=9
+ARG LIBERICA_VERSION=17.0.3.1
+ARG LIBERICA_BUILD=2
 
 ARG LIBERICA_ROOT=${LIBERICA_JVM_DIR}/jdk-${LIBERICA_VERSION}-bellsoft
 
@@ -198,6 +198,7 @@ RUN LIBERICA_ARCH=''                               \
                     --module-path $UNPACKED_ROOT/jmods      \
                     --no-man-pages --strip-debug            \
                     --vm=server                             \
+                    --release-info ${UNPACKED_ROOT}/release \
                     --output "${LIBERICA_ROOT}"             \
   &&            apk del binutils ;;                         \
             base)                                           \
@@ -209,6 +210,7 @@ RUN LIBERICA_ARCH=''                               \
                     --no-header-files                       \
                     --no-man-pages --strip-debug            \
                     --module-path ${UNPACKED_ROOT}/jmods    \
+                    --release-info ${UNPACKED_ROOT}/release \
                     --vm=server                             \
                     --output "${LIBERICA_ROOT}"             \
   &&            apk del binutils ;;                         \
@@ -221,6 +223,7 @@ RUN LIBERICA_ARCH=''                               \
                     --no-header-files                       \
                     --no-man-pages --strip-debug            \
                     --module-path ${UNPACKED_ROOT}/jmods    \
+                    --release-info ${UNPACKED_ROOT}/release \
                     --vm=minimal                            \
                     --output "${LIBERICA_ROOT}"             \
   &&            apk del binutils ;;                         \
@@ -280,6 +283,7 @@ RUN LIBERICA_ARCH=''                               \
                     --no-man-pages                        \
                     --module-path ${UNPACKED_ROOT}/jmods  \
                     --vm=${LIBERICA_VM}                   \
+                    --release-info ${UNPACKED_ROOT}/release\
                     --output "${LIBERICA_ROOT}"           \
   &&            apk del binutils ;;                       \
         esac                                              \
