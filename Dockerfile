@@ -44,7 +44,7 @@ RUN cd /root/dest${GLIBC_PREFIX} && \
 
 
 # DOWNLOAD OR BUILD LAUNCHSERVER FILES
-FROM --platform=$BUILDPLATFORM eclipse-temurin:17-jdk-alpine as launcher-base
+FROM --platform=$BUILDPLATFORM eclipse-temurin:21-jdk-alpine as launcher-base
 
 ### Modify argument LAUNCHER_VERSION or redefine it via --build-arg parameter to have specific LaunchServer version installed:
 ###    docker build . --build-arg LAUNCHER_VERSION=v5.1.8
@@ -84,7 +84,7 @@ RUN apk add --no-cache git && \
 # BUILD FINAL IMAGE
 # src: https://github.com/bell-sw/Liberica/blob/8548f0d9f76f6e70389daa19f6d705ed08cfeed9/docker/repos/liberica-openjdk-alpine/17/Dockerfile
 
-FROM --platform=$BUILDPLATFORM lsiobase/alpine:3.16-version-b612671e as liberica
+FROM --platform=$BUILDPLATFORM lsiobase/alpine:3.18-version-0b5e05cf as liberica
 
 LABEL maintainer="ijo42 <admin@ijo42.ru>"
 
@@ -102,16 +102,20 @@ ENV  LANG=${LANG} \
 
 ARG LIBERICA_IMAGE_VARIANT=custom
 ARG LIBERICA_VM="server"
+ARG LIBERICA_GENERATE_CDS=false
 
 ARG LIBERICA_JVM_DIR=/usr/lib/jvm
-ARG LIBERICA_VERSION=17.0.2
-ARG LIBERICA_BUILD=9
+ARG LIBERICA_VERSION=21.0.1
+ARG LIBERICA_BUILD=12
 
 ARG LIBERICA_ROOT=${LIBERICA_JVM_DIR}/jdk-${LIBERICA_VERSION}-bellsoft
+
+ARG BASE_URL="https://download.bell-sw.com/java/"
 
 COPY --from=glibc-base /root/dest/ /
 
 RUN LIBERICA_ARCH=''                               \
+  && apk --no-cache upgrade libcrypto1.1 libssl1.1 \
   && set -x                                        \
   &&    case `uname -m` in                         \
             x86_64)                                \
@@ -172,11 +176,12 @@ RUN LIBERICA_ARCH=''                               \
   &&    for pkg in $OPT_PKGS ; do apk --no-cache add $pkg ; done            \
   &&    mkdir -p /tmp/java                                                  \
   &&    LIBERICA_BUILD_STR=${LIBERICA_BUILD:+"+${LIBERICA_BUILD}"}          \
+  &&    DIST_URL=${BASE_URL}/${LIBERICA_VERSION}${LIBERICA_BUILD_STR}${LITE_URL} \
   &&    PKG="bellsoft-jdk${LIBERICA_VERSION}${LIBERICA_BUILD_STR}-linux-${LIBERICA_ARCH}${RSUFFIX}.tar.gz" \
-  &&    PKG_URL="https://download.bell-sw.com/java/${LIBERICA_VERSION}${LIBERICA_BUILD_STR}${LITE_URL}/${PKG}"         \
+  &&    PKG_URL="${DIST_URL}/${PKG}"         \
   &&    echo "Download ${PKG_URL}"                                                                   \
   &&    wget "${PKG_URL}" -O /tmp/java/jdk.tar.gz                                                    \
-  &&    SHA_URL="https://download.bell-sw.com/java/${LIBERICA_VERSION}${LIBERICA_BUILD_STR}/docker/sha1sum.txt" \
+  &&    SHA_URL="${DIST_URL}/sha1sum.txt" \
   &&    if [[ ${LIBERICA_IMAGE_VARIANT} == "standard" || ${LIBERICA_IMAGE_VARIANT} == "custom" ]]; then         \
           SHA_URL="https://download.bell-sw.com/sha1sum/java/${LIBERICA_VERSION}${LIBERICA_BUILD_STR}";         \
         fi \
@@ -196,6 +201,7 @@ RUN LIBERICA_ARCH=''                               \
                     --add-modules $OPT_JMODS                \
                     --module-path $UNPACKED_ROOT/jmods      \
                     --no-man-pages --strip-debug            \
+                    --release-info ${UNPACKED_ROOT}/release \
                     --vm=server                             \
                     --output "${LIBERICA_ROOT}"             \
   &&            mkdir -p ${LIBERICA_ROOT}/jmods/            \
@@ -210,11 +216,12 @@ RUN LIBERICA_ARCH=''                               \
   &&            mkdir -pv "${LIBERICA_JVM_DIR}"             \
   &&            ${UNPACKED_ROOT}/bin/jlink                  \
                     --add-modules java.base                 \
-                    --compress=2                            \
+                    --compress=zip-9                            \
                     --no-header-files                       \
                     --no-man-pages --strip-debug            \
                     --module-path ${UNPACKED_ROOT}/jmods    \
                     --vm=server                             \
+                    --release-info ${UNPACKED_ROOT}/release \
                     --output "${LIBERICA_ROOT}"             \
   &&            apk del binutils ;;                         \
             base-minimal)                                   \
@@ -222,11 +229,12 @@ RUN LIBERICA_ARCH=''                               \
   &&            mkdir -pv "${LIBERICA_JVM_DIR}"             \
   &&            ${UNPACKED_ROOT}/bin/jlink                  \
                     --add-modules java.base                 \
-                    --compress=2                            \
+                    --compress=zip-9                            \
                     --no-header-files                       \
                     --no-man-pages --strip-debug            \
                     --module-path ${UNPACKED_ROOT}/jmods    \
                     --vm=minimal                            \
+                    --release-info ${UNPACKED_ROOT}/release \
                     --output "${LIBERICA_ROOT}"             \
   &&            apk del binutils ;;                         \
             standard)                                       \
@@ -271,25 +279,32 @@ RUN LIBERICA_ARCH=''                               \
   &&                 exit 1 ;;                            \
                 esac                                      \
   &&            apk del binutils ;;                       \
-            *)                                            \
-                MODS=$( ls ${UNPACKED_ROOT}/jmods/        \
-                      | sed "s/.jmod//"                   \
-                      | grep -v javafx                    \
-                      | tr '\n' ', '                      \
-                      | sed "s/,$//")                     \
-  &&            apk --no-cache add binutils               \
-  &&            mkdir -pv "${LIBERICA_JVM_DIR}"           \
-  &&            ${UNPACKED_ROOT}/bin/jlink                \
-                    --add-modules ${MODS}                 \
-                    --compress=2                          \
-                    --no-man-pages                        \
-                    --module-path ${UNPACKED_ROOT}/jmods  \
-                    --vm=${LIBERICA_VM}                   \
-                    --output "${LIBERICA_ROOT}"           \
-  &&            apk del binutils ;;                       \
-        esac                                              \
-  &&    ln -s $LIBERICA_ROOT /usr/lib/jvm/jdk             \
-  &&    rm -rf /tmp/java                                  \
+            *)                                              \
+                MODS=$( ls ${UNPACKED_ROOT}/jmods/          \
+                      | sed "s/.jmod//"                     \
+                      | grep -v javafx                      \
+                      | tr '\n' ', '                        \
+                      | sed "s/,$//")                       \
+  &&            apk --no-cache add binutils                 \
+  &&            mkdir -pv "${LIBERICA_JVM_DIR}"             \
+  &&            ${UNPACKED_ROOT}/bin/jlink                  \
+                    --add-modules ${MODS}                   \
+                    --compress=zip-9                        \
+                    --no-man-pages                          \
+                    --module-path ${UNPACKED_ROOT}/jmods    \
+                    --vm=${LIBERICA_VM}                     \
+                    --release-info ${UNPACKED_ROOT}/release \
+                    --output "${LIBERICA_ROOT}"             \
+  &&            apk del binutils ;;                         \
+        esac                                                \
+  &&    ln -s $LIBERICA_ROOT /usr/lib/jvm/jdk               \
+  &&    if [[ $LIBERICA_GENERATE_CDS == true ]]; then                    \
+        ${LIBERICA_ROOT}/bin/java -XX:+UseCompressedOops -Xshare:dump;   \
+        ${LIBERICA_ROOT}/bin/java -XX:-UseCompressedOops -Xshare:dump;   \
+    else                                                                 \
+        find ${LIBERICA_ROOT} -name "classes*.jsa" -exec rm {} \; ;      \
+    fi                               \
+  &&    rm -rf /tmp/java             \
   &&    rm -rf /tmp/hsperfdata_root
 
 ENV JAVA_HOME=${LIBERICA_ROOT} \
