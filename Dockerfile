@@ -69,7 +69,13 @@ RUN apk add --no-cache git && \
     echo "Build" && \
     ./gradlew build -Dorg.gradle.daemon=false || ( echo "Build failed. Stopping" && exit 101 ) && \
     PTH=LaunchServer/build/libs && \
-    cp -R ${PTH}/LaunchServer.jar ${PTH}/launcher-libraries ${PTH}/launcher-libraries-compile ${PTH}/libraries /root/ls && \
+	for dir in "LaunchServer.jar" "launcher-libraries" "launcher-libraries-compile" "libraries"; do \
+		if [ -e "${PTH}/${dir}" ]; then \
+			cp -R "${PTH}/${dir}" /root/ls; \
+		else \
+			echo "[E] ${PTH}/${dir} does not exists"; \
+		fi \
+	done && \
     cd .. \
   && \
     echo "Clone runtime repository" && \
