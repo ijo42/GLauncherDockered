@@ -1,6 +1,6 @@
-FROM --platform=$TARGETPLATFORM debian:10-slim as glibc-base
+FROM --platform=$TARGETPLATFORM debian:12-slim as glibc-base
 
-ARG GLIBC_VERSION=2.28
+ARG GLIBC_VERSION=2.40
 ARG GLIBC_PREFIX=/usr/glibc
 ARG LANG=en_US.UTF-8
 ENV DEBIAN_FRONTEND=noninteractive
@@ -44,7 +44,7 @@ RUN cd /root/dest${GLIBC_PREFIX} && \
 
 
 # DOWNLOAD OR BUILD LAUNCHSERVER FILES
-FROM --platform=$BUILDPLATFORM eclipse-temurin:17-jdk as launcher-base
+FROM --platform=$BUILDPLATFORM eclipse-temurin:21-jdk as launcher-base
 
 ### Modify argument LAUNCHER_VERSION or redefine it via --build-arg parameter to have specific LaunchServer version installed:
 ###    docker build . --build-arg LAUNCHER_VERSION=v5.1.8
@@ -67,9 +67,9 @@ RUN apt-get update && apt-get install -y git && \
     git submodule sync && \
     git submodule update --init --recursive && \
     echo "Build" && \
-    ./gradlew build -Dorg.gradle.daemon=false || ( echo "Build failed. Stopping" && exit 101 ) && \
-    PTH=LaunchServer/build/libs && \
-    cp -R ${PTH}/LaunchServer.jar ${PTH}/launcher-libraries ${PTH}/launcher-libraries-compile ${PTH}/libraries /root/ls && \
+    ./gradlew build installDist -Dorg.gradle.daemon=false || ( echo "Build failed. Stopping" && exit 101 ) && \
+    PTH=components/launchserver/build/install/launchserver && \
+    cp -R ${PTH}/bin ${PTH}/lib /root/ls && \
     cd .. \
   && \
     echo "Clone runtime repository" && \
@@ -268,7 +268,8 @@ RUN LIBERICA_ARCH=''                               \
   &&    rm -rf /tmp/hsperfdata_root
 
 ENV JAVA_HOME=${LIBERICA_ROOT} \
-	PATH=${LIBERICA_ROOT}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+	PATH=${LIBERICA_ROOT}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+	JAVA_OPTS="-Dlaunchserver.dockered=true"
 
 WORKDIR /app/launchserver
 
@@ -278,4 +279,4 @@ COPY root/ /
 VOLUME ["/app/launchserver"]
 
 EXPOSE 9274
-CMD ["s6-setuidgid", "abc", "java", "-Dlaunchserver.dockered=true", "-jar", "LaunchServer.jar"]
+CMD ["s6-setuidgid", "abc", "/app/launchserver/bin/launchserver"]

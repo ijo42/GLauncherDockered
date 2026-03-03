@@ -1,6 +1,6 @@
-FROM --platform=$BUILDPLATFORM debian:10-slim as glibc-base
+FROM --platform=$BUILDPLATFORM debian:12-slim as glibc-base
 
-ARG GLIBC_VERSION=2.28
+ARG GLIBC_VERSION=2.40
 ARG GLIBC_PREFIX=/usr/glibc
 ARG LANG=en_US.UTF-8
 ENV DEBIAN_FRONTEND=noninteractive
@@ -67,9 +67,9 @@ RUN apk add --no-cache git && \
     git submodule sync && \
     git submodule update --init --recursive && \
     echo "Build" && \
-    ./gradlew build -Dorg.gradle.daemon=false || ( echo "Build failed. Stopping" && exit 101 ) && \
-    PTH=LaunchServer/build/libs && \
-	for dir in "LaunchServer.jar" "launcher-libraries" "launcher-libraries-compile" "libraries"; do \
+    ./gradlew build installDist -Dorg.gradle.daemon=false || ( echo "Build failed. Stopping" && exit 101 ) && \
+    PTH=components/launchserver/build/install/launchserver && \
+	for dir in "bin" "lib"; do \
 		if [ -e "${PTH}/${dir}" ]; then \
 			cp -R "${PTH}/${dir}" /root/ls; \
 		else \
@@ -314,7 +314,8 @@ RUN LIBERICA_ARCH=''                               \
   &&    rm -rf /tmp/hsperfdata_root
 
 ENV JAVA_HOME=${LIBERICA_ROOT} \
-	PATH=${LIBERICA_ROOT}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+	PATH=${LIBERICA_ROOT}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+	JAVA_OPTS="-Dlaunchserver.dockered=true"
 
 WORKDIR /app/launchserver
 
@@ -324,4 +325,4 @@ COPY root/ /
 VOLUME ["/app/launchserver"]
 
 EXPOSE 9274
-CMD ["s6-setuidgid", "abc", "java", "-Dlaunchserver.dockered=true", "-jar", "LaunchServer.jar"]
+CMD ["s6-setuidgid", "abc", "/app/launchserver/bin/launchserver"]

@@ -1,6 +1,6 @@
 #!/usr/bin/with-contenv bash
 
-for f in 'libraries' 'launcher-libraries' 'launcher-libraries-compile' 'runtime' 'launcher-modules' 'LaunchServer.jar' ; do \
+for f in 'bin' 'lib' 'runtime' 'launcher-modules' ; do \
     if [ ! -e /app/launchserver/${f} ]; then
         echo "
         **** missing ${f}. copying defaults ****
