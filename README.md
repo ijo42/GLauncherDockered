@@ -24,7 +24,6 @@ Using this image allows us to use the same user/group ids in the container as on
 using docker-compose:
 
 ```docker-compose.yml
-version: "2"
 services:
   launchserver:
     image: ijo42/glauncher:latest
@@ -85,7 +84,6 @@ Use the [Dockerfile](https://github.com/ijo42/GLauncherDockered/Dockerfile) to b
 docker-compose.yml:
 
 ```docker-compose.yml
-version: '2'
 services:
   launchserver:
     container_name: launchserver

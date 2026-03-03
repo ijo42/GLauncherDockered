@@ -68,6 +68,12 @@ RUN apk add --no-cache git && \
     git submodule update --init --recursive && \
     echo "Build" && \
     ./gradlew build installDist -Dorg.gradle.daemon=false || ( echo "Build failed. Stopping" && exit 101 ) && \
+    ./gradlew :components:launcher-api:publishToMavenLocal \
+              :components:launcher-client:publishToMavenLocal \
+              :components:launcher-core:publishToMavenLocal \
+              :components:launcher-runtime:publishToMavenLocal \
+              :components:launcher-start:publishToMavenLocal \
+              -Dorg.gradle.daemon=false && \
     PTH=components/launchserver/build/install/launchserver && \
 	for dir in "bin" "lib"; do \
 		if [ -e "${PTH}/${dir}" ]; then \
@@ -85,6 +91,30 @@ RUN apk add --no-cache git && \
     ./gradlew build -Dorg.gradle.daemon=false || ( echo "Build failed. Stopping" && exit 102 ) && \
     cp $(echo build/libs/JavaRuntime*.jar) /root/ls/launcher-modules/ && \
     cp -R runtime/* /root/ls/runtime/
+
+
+# DOWNLOAD LIBERICA JDK (use Debian for reliable SSL)
+FROM --platform=$BUILDPLATFORM debian:12-slim as liberica-download
+
+ARG LIBERICA_VERSION=21.0.1
+ARG LIBERICA_BUILD=12
+ARG LIBERICA_IMAGE_VARIANT=custom
+ARG GITHUB_RELEASES_URL="https://github.com/bell-sw/Liberica/releases/download"
+
+RUN apt-get update -q \
+  && apt-get install -y --no-install-recommends wget ca-certificates \
+  && LIBERICA_ARCH=$(uname -m | sed 's/x86_64/amd64/;s/i686/i586/;s/armv[67]l/arm32-vfp-hflt/;s/ppc64le/ppc64le/') \
+  && case "$LIBERICA_IMAGE_VARIANT" in \
+       standard|custom) RSUFFIX="-full" ;; \
+       *) RSUFFIX="-lite" ;; \
+     esac \
+  && LIBERICA_BUILD_STR=${LIBERICA_BUILD:+"+${LIBERICA_BUILD}"} \
+  && LIBERICA_BUILD_STR_ENC=$(echo "$LIBERICA_BUILD_STR" | sed 's/+/%2B/g') \
+  && PKG="bellsoft-jdk${LIBERICA_VERSION}${LIBERICA_BUILD_STR}-linux-${LIBERICA_ARCH}${RSUFFIX}.tar.gz" \
+  && PKG_ENC="bellsoft-jdk${LIBERICA_VERSION}${LIBERICA_BUILD_STR_ENC}-linux-${LIBERICA_ARCH}${RSUFFIX}.tar.gz" \
+  && TAG_ENC="${LIBERICA_VERSION}${LIBERICA_BUILD_STR_ENC}" \
+  && mkdir -p /tmp/java \
+  && wget -q "${GITHUB_RELEASES_URL}/${TAG_ENC}/${PKG_ENC}" -O /tmp/java/jdk.tar.gz
 
 
 # BUILD FINAL IMAGE
@@ -116,10 +146,10 @@ ARG LIBERICA_BUILD=12
 
 ARG LIBERICA_ROOT=${LIBERICA_JVM_DIR}/jdk-${LIBERICA_VERSION}-bellsoft
 
-ARG BASE_URL="https://download.bell-sw.com/java/"
-
 COPY --from=glibc-base /root/dest/ /
+COPY --from=liberica-download /tmp/java/jdk.tar.gz /tmp/java/jdk.tar.gz
 
+SHELL ["/bin/bash", "-c"]
 RUN LIBERICA_ARCH=''                               \
   && apk --no-cache upgrade libcrypto1.1 libssl1.1 \
   && set -x                                        \
@@ -144,7 +174,8 @@ RUN LIBERICA_ARCH=''                               \
                 ;;                                 \
         esac                                       \
   &&    ln -s ${GLIBC_PREFIX}/lib/ld-*.so* /lib                   \
-  &&    ln -s ${GLIBC_PREFIX}/etc/ld.so.cache /etc                \
+  &&    ln -s ${GLIBC_PREFIX}/etc/ld.so.cache /etc/ld.so.cache   \
+  &&    ln -s ${GLIBC_PREFIX}/etc/ld.so.conf /etc/ld.so.conf    \
   &&    if [ "$LIBERICA_ARCH" = "amd64" ]; then                   \
           ln -s /lib /lib64                                       \
   &&      mkdir /tmp/zlib                                         \
@@ -157,45 +188,9 @@ RUN LIBERICA_ARCH=''                               \
   &&      rm -rf /tmp/gcc;     \
         fi                     \
   &&    for pkg in $OPT_PKGS ; do apk --no-cache add $pkg ; done \
-  &&    ${GLIBC_PREFIX}/sbin/ldconfig                            \
+  &&    ldconfig || true                                          \
   &&    echo 'hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4' > /etc/nsswitch.conf \
-  &&    case "$LIBERICA_IMAGE_VARIANT" in                                   \
-            standard|custom)                                                       \
-                RSUFFIX="-full"                                                  \
-  &&            LITE_URL="" ;;                                              \
-            lite|base|base-minimal)                                         \
-                RSUFFIX="-lite"                                             \
-  &&            LITE_URL="/docker" ;;                                       \
-            *) echo "Invalid parameter LIBERICA_IMAGE_VARIANT = ${LIBERICA_IMAGE_VARIANT}"    \
-  &&           echo "LIBERICA_IMAGE_VARIANT can be one of [standard|lite|base|base-minimal]"  \
-  &&           exit 1 ;; \
-         esac            \
-  &&  if [[ ${LIBERICA_IMAGE_VARIANT} == "standard" || ${LIBERICA_IMAGE_VARIANT} == "lite" ]]; then \
-        case $LIBERICA_VM in                                                                        \
-          server|client|minimal|all) echo ;;                                                        \
-          *) echo "Only server, client, minimal or all VM is avalable for LIBERICA_VM argument"     \
-  &&            echo "example: LIBERICA_VM='server'"                                                \
-  &&            exit 1                                                                              \
-           ;; \
-        esac; \
-      fi      \
-  &&    for pkg in $OPT_PKGS ; do apk --no-cache add $pkg ; done            \
   &&    mkdir -p /tmp/java                                                  \
-  &&    LIBERICA_BUILD_STR=${LIBERICA_BUILD:+"+${LIBERICA_BUILD}"}          \
-  &&    DIST_URL=${BASE_URL}/${LIBERICA_VERSION}${LIBERICA_BUILD_STR}${LITE_URL} \
-  &&    PKG="bellsoft-jdk${LIBERICA_VERSION}${LIBERICA_BUILD_STR}-linux-${LIBERICA_ARCH}${RSUFFIX}.tar.gz" \
-  &&    PKG_URL="${DIST_URL}/${PKG}"         \
-  &&    echo "Download ${PKG_URL}"                                                                   \
-  &&    wget "${PKG_URL}" -O /tmp/java/jdk.tar.gz                                                    \
-  &&    SHA_URL="${DIST_URL}/sha1sum.txt" \
-  &&    if [[ ${LIBERICA_IMAGE_VARIANT} == "standard" || ${LIBERICA_IMAGE_VARIANT} == "custom" ]]; then         \
-          SHA_URL="https://download.bell-sw.com/sha1sum/java/${LIBERICA_VERSION}${LIBERICA_BUILD_STR}";         \
-        fi \
-  &&    SHA1=$(wget -q "${SHA_URL}" -O -          \
-               | grep ${PKG}                      \
-               | cut -f1 -d' '                    \
-              )                                   \
-  &&    echo "${SHA1} */tmp/java/jdk.tar.gz" | sha1sum -c - \
   &&    tar xzf /tmp/java/jdk.tar.gz -C /tmp/java           \
   &&    UNPACKED_ROOT=/tmp/java/jdk-${LIBERICA_VERSION}*    \
   &&    case $LIBERICA_IMAGE_VARIANT in                     \

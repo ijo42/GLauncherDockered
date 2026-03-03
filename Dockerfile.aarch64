@@ -68,6 +68,12 @@ RUN apt-get update && apt-get install -y git && \
     git submodule update --init --recursive && \
     echo "Build" && \
     ./gradlew build installDist -Dorg.gradle.daemon=false || ( echo "Build failed. Stopping" && exit 101 ) && \
+    ./gradlew :components:launcher-api:publishToMavenLocal \
+              :components:launcher-client:publishToMavenLocal \
+              :components:launcher-core:publishToMavenLocal \
+              :components:launcher-runtime:publishToMavenLocal \
+              :components:launcher-start:publishToMavenLocal \
+              -Dorg.gradle.daemon=false && \
     PTH=components/launchserver/build/install/launchserver && \
     cp -R ${PTH}/bin ${PTH}/lib /root/ls && \
     cd .. \
@@ -126,7 +132,8 @@ RUN LIBERICA_ARCH=''                               \
                 ;;                                 \
         esac                                       \
   &&    ln -s ${GLIBC_PREFIX}/lib/ld-*.so* /lib                   \
-  &&    ln -s ${GLIBC_PREFIX}/etc/ld.so.cache /etc                \
+  &&    ln -s ${GLIBC_PREFIX}/etc/ld.so.cache /etc/ld.so.cache   \
+  &&    ln -s ${GLIBC_PREFIX}/etc/ld.so.conf /etc/ld.so.conf    \
   &&    if [ "$LIBERICA_ARCH" = "amd64" ]; then                   \
           ln -s /lib /lib64                                       \
   &&      mkdir /tmp/zlib                                         \
@@ -139,7 +146,7 @@ RUN LIBERICA_ARCH=''                               \
   &&      rm -rf /tmp/gcc;     \
         fi                     \
   &&    for pkg in $OPT_PKGS ; do apk --no-cache add $pkg ; done \
-  &&    ${GLIBC_PREFIX}/sbin/ldconfig                            \
+  &&    ldconfig || true                                          \
   &&    echo 'hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4' > /etc/nsswitch.conf \
   &&    case "$LIBERICA_IMAGE_VARIANT" in                                   \
             standard|custom)                                                       \
